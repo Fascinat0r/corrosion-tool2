@@ -3,16 +3,9 @@ import json
 from Tube_point import tube_point
 
 
-def start_point(point: tube_point):  # initialization of start point, done by hand
+def start_point(point: tube_point, path: str):  # initialization of start point, done by hand
 
-    # point.temperature = 320.0  # Kelvin
-    # point.pressure = 3.5 * 101325  # Pascal
-    # point.molar_composition = [0.5, 0.5]  # Molar composition
-    # point.molar_masses = [0.03, 0.028]
-    # point.velocity = 5.0  # [m/s]
-    # point.diameter = 0.08  # [m]
-    # point.length = 100
-    fill_variables_from_json("jsons/default.json", point)
+    fill_variables_from_json(path, point)
     point.update_point_state()
     return point
 
