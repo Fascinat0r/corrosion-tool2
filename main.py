@@ -1,8 +1,12 @@
 import copy
 import sys
+import time
+
 sys.path.insert(0, '../pycThermopack/')
 from Tube_point import tube_point
 from start_point import start_point
+
+
 def calculate_xtt(liquid_density, gas_density, liquid_viscosity, gas_viscosity, velocity, diameter):
     return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
             (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
@@ -110,6 +114,7 @@ def main(path: str):
         tube_points.append(next_point)
         print()
 
+
 # end of PVT block
 # start of flow_mode part
 # xtt = calculate_xtt(p)
@@ -156,4 +161,7 @@ def main(path: str):
 # print ('Average WSS is about', wss, 'Pa')
 
 if __name__ == "__main__":
+    start = time.time()
     main("jsons/default.json")
+    end = time.time()
+    print("The time of execution of above program is :", (end - start) * 10 ** 3, "ms")
