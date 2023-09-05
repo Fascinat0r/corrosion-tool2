@@ -20,6 +20,11 @@ def main(path: str):
     tube_diameters = [0.08, 0.08, 0.08, 0.09, 0.09, 0.09, 0.09, 0.08, 0.08, 0.1]
     tube_lengths = [1000, 200, 450, 1000, 200, 300, 200, 300, 1000, 0]
     tube_points = [point]
+
+    re_nums = list()
+    list_p1 = list()
+    list_t1 = list()
+
     for i in range(1, len(tube_diameters)):
         xtt = tube_points[i - 1].calculate_xtt()
         # print ('i', i, ' xtt ', xtt)
@@ -30,11 +35,14 @@ def main(path: str):
                                                                    tube_points[i - 1].liquid_viscosities[1],
                                                                    friction_factor)
         tube_points[i - 1].reynolds_number = tube_points[i - 1].calculate_Re()
+        re_nums.append(tube_points[i - 1].reynolds_number)
         print('Reynolds number for ', i, ' is ', tube_points[i - 1].reynolds_number, 'lambda is ',
               calculate_lambda(tube_points[i - 1].reynolds_number))
         diff = point.calculate_pressure_loss()
         P1 = tube_points[i - 1].pressure - diff
         T1 = tube_points[i - 1].temperature - i * 0.3
+        list_p1.append(P1)
+        list_t1.append(T1)
         print('P1: ', P1, ', T1: ', T1)
         next_point = copy.deepcopy(tube_points[i - 1])
 
