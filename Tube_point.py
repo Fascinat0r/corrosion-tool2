@@ -7,7 +7,7 @@ from PVT import *
 
 
 @dataclass
-class tube_point:
+class Tube_point:
     name: str = 'mixture'  # name: string, name of the material
     phase_name: List[str] = field(default_factory=lambda: ['gas'])  # phase_name: list of strings, name of phases
     number_of_fluids: int = 1  # number_of_fluids: integer, number of phases
@@ -64,7 +64,7 @@ class tube_point:
         self.components_density = [density_1, density_2]
         self.overall_density = self.calculate_overall_density()
         ethanol_viscosity = ethanol_viscosity_from_temperature(self.temperature)
-        n2_viscosity = n2_viscosity_from_temp(self.temperature)
+        n2_viscosity = n2_viscosity_from_temperature(self.temperature)
         self.liquid_viscosities = [ethanol_viscosity, n2_viscosity]
         self.vapor_viscosities = [ethanol_viscosity, n2_viscosity]
 
@@ -83,8 +83,8 @@ class tube_point:
         """
         liquid_density = self.components_density[0]
         gas_density = self.components_density[1]
-        liquid_viscosity = self.liquid_viscosities[0]
-        gas_viscosity = self.liquid_viscosities[1]
+        liquid_viscosity = self.liquid_viscosities[0]  # ? liquid_overall_viscosity?
+        gas_viscosity = self.liquid_viscosities[1]  # ?
         velocity = self.velocity
         diameter = self.diameter
         return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
@@ -102,3 +102,72 @@ class tube_point:
     def calculate_pressure_loss(self):
         xi = self.calculate_lambda() * self.length / self.diameter
         return (xi * self.velocity ** 2) * 0.5 * self.overall_density
+
+
+def calculate_xtt(liquid_density, gas_density, liquid_viscosity, gas_viscosity, velocity, diameter):
+    return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
+            (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
+
+
+def calculate_viscosity(liquid_viscosity, gas_viscosity, friction_factor):
+    return friction_factor * liquid_viscosity + (1 - friction_factor) * gas_viscosity
+
+
+def calculate_Re(velocity, diameter, overall_density, overall_viscosity):
+    return velocity * diameter * overall_density / overall_viscosity
+
+
+def calculate_lambda(Re):
+    if Re < 2300:
+        return 64 / Re
+    else:
+        return 0.316 / (Re ** 0.25)
+
+
+def return_pressure_loss(velocity, diameter, length, lam, density):
+    xi = lam * length / diameter
+    return (xi * velocity ** 2) * 0.5 * density
+
+
+def return_mode(xtt):
+    if xtt < 10: return 'bubble'
+    if 10 <= xtt < 100:
+        return 'plug'
+    if 100 <= xtt < 1000:
+        return 'slug'
+    if 1000 <= xtt < 10000:
+        return 'annular'
+    if 10000 <= xtt:
+        return 'mist'
+    return 'undefined'
+
+
+# liquid to solid viscosity calculation:
+
+def return_friction_factor(xtt):
+    """
+    Outputs the friction factor to calculate the viscosity.
+    :param xtt:
+    :return:
+    """
+    if xtt < 10:
+        return 1
+    if 10 <= xtt < 100:
+        return 0.9
+    if 100 <= xtt < 1000:
+        return 0.8
+    if 1000 <= xtt < 10000:
+        return 0.7
+    if 10000 <= xtt:
+        return 0.6
+    return 0
+
+
+def define_tube_params(point: Tube_point, diameter, length, density_old):
+    q = point.velocity * point.diameter * point.diameter * density_old
+    new_velocity = q / (diameter * diameter * point.overall_density)  # mass balance, pi/4 is skipped
+    # due to presence in both parts of equation
+    point.diameter = diameter
+    point.length = length
+    point.velocity = new_velocity
+    return point

@@ -1,9 +1,9 @@
 import json
 
-from Tube_point import tube_point
+from Tube_point import Tube_point
 
 
-def start_point(point: tube_point, path: str):  # initialization of start point, done by hand
+def start_point(point: Tube_point, path: str):  # initialization of start point, done by hand
 
     fill_variables_from_json(path, point)
     point.update_point_state()

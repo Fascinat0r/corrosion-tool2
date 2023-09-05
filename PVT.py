@@ -5,7 +5,7 @@ import math
 def ethanol_viscosity_from_temperature(T):
     """
     Calculation of the viscosity of liquid ethanol as a function of temperature by exponential correlation
-    :param T: temperature of ethanol
+    :param T: temperature of ethanol, K
     :return: ethanol viscosity
     """
     A = 0.00201 * 1e-6
@@ -16,10 +16,10 @@ def ethanol_viscosity_from_temperature(T):
 
 
 # PVT block
-def n2_viscosity_from_temp(T):
+def n2_viscosity_from_temperature(T):
     """
     Calculation of the viscosity of nitrogen gas as a function of temperature according to the Sutherland formula
-    :param T: temperature of nitrogen
+    :param T: temperature of nitrogen, K
     :return: viscosity of nitrogen gas
     """
     VISCOSITY_INIT = 1.7e-5

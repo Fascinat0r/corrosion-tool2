@@ -3,80 +3,11 @@ import sys
 import time
 
 sys.path.insert(0, '../pycThermopack/')
-from Tube_point import tube_point
+from Tube_point import *
 from start_point import start_point
 
 
-def calculate_xtt(liquid_density, gas_density, liquid_viscosity, gas_viscosity, velocity, diameter):
-    return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
-            (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
-
-
-def calculate_viscosity(liquid_viscosity, gas_viscosity, friction_factor):
-    return friction_factor * liquid_viscosity + (1 - friction_factor) * gas_viscosity
-
-
-def calculate_Re(velocity, diameter, overall_density, overall_viscosity):
-    return velocity * diameter * overall_density / overall_viscosity
-
-
-def calculate_lambda(Re):
-    if Re < 2300:
-        return 64 / Re
-    else:
-        return 0.316 / (Re ** 0.25)
-
-
-def return_pressure_loss(velocity, diameter, length, lam, density):
-    xi = lam * length / diameter
-    return (xi * velocity ** 2) * 0.5 * density
-
-
-def return_mode(xtt):
-    if xtt < 10: return 'bubble'
-    if 10 <= xtt < 100:
-        return 'plug'
-    if 100 <= xtt < 1000:
-        return 'slug'
-    if 1000 <= xtt < 10000:
-        return 'annular'
-    if 10000 <= xtt:
-        return 'mist'
-    return 'undefined'
-
-
-# liquid to solid viscosity calculation:
-
-def return_friction_factor(xtt):
-    """
-    Outputs the friction factor to calculate the viscosity.
-    :param xtt:
-    :return:
-    """
-    if xtt < 10:
-        return 1
-    if 10 <= xtt < 100:
-        return 0.9
-    if 100 <= xtt < 1000:
-        return 0.8
-    if 1000 <= xtt < 10000:
-        return 0.7
-    if 10000 <= xtt:
-        return 0.6
-    return 0
-
-
-def define_tube_params(point: tube_point, diameter, length, density_old):
-    q = point.velocity * point.diameter * point.diameter * density_old
-    new_velocity = q / (diameter * diameter * point.overall_density)  # mass balance, pi/4 is skipped
-    # due to presence in both parts of equation
-    point.diameter = diameter
-    point.length = length
-    point.velocity = new_velocity
-    return point
-
-
-def pvt_block(point: tube_point, new_pressure, new_temperature):
+def pvt_block(point: Tube_point, new_pressure, new_temperature):
     point.temperature = new_temperature
     point.pressure = new_pressure
     point.update_point_state()
@@ -84,7 +15,7 @@ def pvt_block(point: tube_point, new_pressure, new_temperature):
 
 
 def main(path: str):
-    point = tube_point()
+    point = Tube_point()
     start_point(point, path)
     tube_diameters = [0.08, 0.08, 0.08, 0.09, 0.09, 0.09, 0.09, 0.08, 0.08, 0.1]
     tube_lengths = [1000, 200, 450, 1000, 200, 300, 200, 300, 1000, 0]
