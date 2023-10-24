@@ -53,6 +53,6 @@ def main(path: str):
 
 if __name__ == "__main__":
     start = time.time()
-    main("../xlsm/Imput_data.xlsm")
+    main("xlsm/Imput_data.xlsm")
     end = time.time()
     print("The time of execution of above program is :", (end - start) * 10 ** 3, "ms")
