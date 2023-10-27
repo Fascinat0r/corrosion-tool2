@@ -41,96 +41,105 @@ class Tube_point:
     mass = 0.1
     angle = 0  # angle: угол наклона трубы
 
-    def start_point_from_excel(self, excel_path):  # initialization of start pointы
-        df = pd.read_excel(excel_path)
-        _ = df['Unnamed: 1']
 
-        self.temperature = _[0]
-        self.pressure = _[2]
-        self.molar_composition = [_[7], _[13]]
-        self.molar_masses = [_[6], _[12]]
-        self.velocity = _[3]
-        self.diameter = _[22]
-        self.length = _[20]
-        self.vapor_viscosities = _[9]
-        self.liquid_viscosities = _[15]
-        self.components_density = [_[8], _[14]]
-        self.roughness = _[21]
-        self.mass = _[1]
-        self.update_point_state()
+def start_point_from_excel(point, excel_path):  # initialization of start pointы
+    df = pd.read_excel(excel_path)
+    _ = df['Unnamed: 1']
 
-    def define_tube_params(self, diameter, length, density_old):
-        q = self.velocity * self.diameter * self.diameter * density_old
-        new_velocity = q / (diameter * diameter * self.overall_density)  # mass balance, pi/4 is skipped
-        # due to presence in both parts of equation
-        self.diameter = diameter
-        self.length = length
-        self.velocity = new_velocity
+    point.temperature = _[0]
+    point.pressure = _[2]
+    point.molar_composition = [_[7], _[13]]
+    point.molar_masses = [_[6], _[12]]
+    point.velocity = _[3]
+    point.diameter = _[22]
+    point.length = _[20]
+    point.vapor_viscosities = _[9]
+    point.liquid_viscosities = _[15]
+    point.components_density = [_[8], _[14]]
+    point.roughness = _[21]
+    point.mass = _[1]
+    update_point_state(point)
 
-    def update_point_state(self):
-        """
-        Updates tube point parameters after changing local temperature and pressure
-        """
-        rk_fluid = cubic('N2,ETOH', 'SRK')  # obsolete
-        x, y, vap_frac, liq_frac, phase_key = rk_fluid.two_phase_tpflash(self.temperature, self.pressure,
-                                                                         self.molar_composition)
-        self.vapor_components = x
-        self.liquid_components = y
-        self.overall_vapor_fraction = vap_frac
-        self.overall_liquid_fraction = liq_frac
 
-        temp, = rk_fluid.specific_volume(self.temperature, self.pressure, self.molar_composition, 1)
-        density_1 = self.molar_masses[0] / temp
+def define_tube_params(point, diameter, length, density_old):
+    q = point.velocity * point.diameter * point.diameter * density_old
+    new_velocity = q / (diameter * diameter * point.overall_density)  # mass balance, pi/4 is skipped
+    # due to presence in both parts of equation
+    point.diameter = diameter
+    point.length = length
+    point.velocity = new_velocity
 
-        temp, = rk_fluid.specific_volume(self.temperature, self.pressure, self.molar_composition, 2)
-        density_2 = self.molar_masses[1] / temp
 
-        self.components_density = [density_1, density_2]
-        self.overall_density = self.calculate_overall_density()
-        ethanol_viscosity = ethanol_viscosity_from_temperature(self.temperature)
-        n2_viscosity = n2_viscosity_from_temperature(self.temperature)
-        self.liquid_viscosities = [ethanol_viscosity, n2_viscosity]
-        self.vapor_viscosities = [ethanol_viscosity, n2_viscosity]
+def update_point_state(point):
+    """
+    Updates tube point parameters after changing local temperature and pressure
+    """
+    rk_fluid = cubic('N2,ETOH', 'SRK')  # obsolete
+    x, y, vap_frac, liq_frac, phase_key = rk_fluid.two_phase_tpflash(point.temperature, point.pressure,
+                                                                     point.molar_composition)
+    point.vapor_components = x
+    point.liquid_components = y
+    point.overall_vapor_fraction = vap_frac
+    point.overall_liquid_fraction = liq_frac
 
-    def calculate_Re(self):
-        """
-        Calculates the Reynolds number based on the total density and total viscosity of the medium.
-        :return: Reynolds number
-        """
-        return self.velocity * self.diameter * self.overall_density / self.overall_viscosity
+    temp, = rk_fluid.specific_volume(point.temperature, point.pressure, point.molar_composition, 1)
+    density_1 = point.molar_masses[0] / temp
 
-    def calculate_xtt(self):
-        """
-        Calculates the parameter by which the flow mode can be obtained.
-        NOTE: The simplest correlation has been applied, which will require adjustments in the future
-        :return: xtt - Lockhart-Martinelli parameter
-        """
-        liquid_density = self.components_density[0]
-        gas_density = self.components_density[1]
-        liquid_viscosity = self.liquid_viscosities[0]  # ? liquid_overall_viscosity?
-        gas_viscosity = self.liquid_viscosities[1]  # ?
-        velocity = self.velocity
-        diameter = self.diameter
-        return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
-                (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
+    temp, = rk_fluid.specific_volume(point.temperature, point.pressure, point.molar_composition, 2)
+    density_2 = point.molar_masses[1] / temp
 
-    def calculate_overall_density(self):  # необходимо дописать учёт агрегатного состояния
-        return sum(self.molar_composition[i] * self.components_density[i] for i in range(self.number_of_fluids))
+    point.components_density = [density_1, density_2]
+    point.overall_density = calculate_overall_density(point)
+    ethanol_viscosity = ethanol_viscosity_from_temperature(point.temperature)
+    n2_viscosity = n2_viscosity_from_temperature(point.temperature)
+    point.liquid_viscosities = [ethanol_viscosity, n2_viscosity]
+    point.vapor_viscosities = [ethanol_viscosity, n2_viscosity]
 
-    def calculate_lambda(self):
-        if self.reynolds_number < 2300:
-            return 64 / self.reynolds_number
-        else:
-            return 0.316 / (self.reynolds_number ** 0.25)
 
-    def calculate_pressure_loss(self):
-        xi = self.calculate_lambda() * self.length / self.diameter
-        return (xi * self.velocity ** 2) * 0.5 * self.overall_density
+def calculate_Re(point):
+    """
+    Calculates the Reynolds number based on the total density and total viscosity of the medium.
+    :return: Reynolds number
+    """
+    return point.velocity * point.diameter * point.overall_density / point.overall_viscosity
 
-    def calculate_viscosity(self, friction_factor):
-        liquid_viscosity = self.liquid_viscosities[0]  # ? liquid_overall_viscosity?
-        gas_viscosity = self.liquid_viscosities[1]  # ?
-        return friction_factor * liquid_viscosity + (1 - friction_factor) * gas_viscosity
+
+def calculate_xtt(point):
+    """
+    Calculates the parameter by which the flow mode can be obtained.
+    NOTE: The simplest correlation has been applied, which will require adjustments in the future
+    :return: xtt - Lockhart-Martinelli parameter
+    """
+    liquid_density = point.components_density[0]
+    gas_density = point.components_density[1]
+    liquid_viscosity = point.liquid_viscosities[0]  # ? liquid_overall_viscosity?
+    gas_viscosity = point.liquid_viscosities[1]  # ?
+    velocity = point.velocity
+    diameter = point.diameter
+    return ((1.096 / liquid_density) ** 0.5) * ((liquid_density / gas_density) ** 0.25) * (
+            (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
+
+
+def calculate_overall_density(point):  # необходимо дописать учёт агрегатного состояния
+    return sum(point.molar_composition[i] * point.components_density[i] for i in range(point.number_of_fluids))
+
+
+def calculate_lambda(point):
+    if point.reynolds_number < 2300:
+        return 64 / point.reynolds_number
+    else:
+        return 0.316 / (point.reynolds_number ** 0.25)
+
+
+def calculate_pressure_loss(point):
+    xi = calculate_lambda(point) * point.length / point.diameter
+    return (xi * point.velocity ** 2) * 0.5 * point.overall_density
+
+
+def calculate_viscosity(point, friction_factor):
+    liquid_viscosity = point.liquid_viscosities[0]  # ? liquid_overall_viscosity?
+    gas_viscosity = point.liquid_viscosities[1]  # ?
+    return friction_factor * liquid_viscosity + (1 - friction_factor) * gas_viscosity
 
 
 def return_mode(xtt):
@@ -165,4 +174,3 @@ def return_friction_factor(xtt):
     if 10000 <= xtt:
         return 0.6
     return 0
-
