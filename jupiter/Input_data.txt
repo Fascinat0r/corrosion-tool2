@@ -1,0 +1,23 @@
+{
+       "temperature": 311,
+       "pressure": 16250000,
+       "molar_composition": [
+              0.8,
+              0.2
+       ],
+       "molar_masses": [
+              0.01604,
+              0.018015
+       ],
+       "velocity": 5,
+       "diameter": 386,
+       "length": 16500,
+       "vapor_viscosities": 1.1e-05,
+       "liquid_viscosities": 0.00089,
+       "components_density": [
+              665,
+              997
+       ],
+       "roughness": 1.5e-05,
+       "mass": 16500
+}

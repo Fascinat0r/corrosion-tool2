@@ -1,0 +1,56 @@
+[
+    {
+        "P1": 16249974.428807432,
+        "T1": 310.7,
+        "Flow": "Found , bubble,  flow_mode at, 1, ! xtt= , 0.013668636941282888",
+        "Re": "Reynolds number for , 1,  is  250843084377.9773, lambda is ,0.0004465155105930261"
+    },
+    {
+        "P1": 16249948.857614864,
+        "T1": 310.09999999999997,
+        "Flow": "Found , annular,  flow_mode at, 2, ! xtt= , 4567.092661562894",
+        "Re": "Reynolds number for , 2,  is  160709270942257.97, lambda is ,8.875173461029906e-05"
+    },
+    {
+        "P1": 16249923.286422295,
+        "T1": 309.2,
+        "Flow": "Found , annular,  flow_mode at, 3, ! xtt= , 4539.054325650909",
+        "Re": "Reynolds number for , 3,  is  160761571406540.34, lambda is ,8.874451534253445e-05"
+    },
+    {
+        "P1": 16249897.715229727,
+        "T1": 308.0,
+        "Flow": "Found , annular,  flow_mode at, 4, ! xtt= , 3768.7459197409694",
+        "Re": "Reynolds number for , 4,  is  142965682298454.97, lambda is ,9.138588716965232e-05"
+    },
+    {
+        "P1": 16249872.14403716,
+        "T1": 306.5,
+        "Flow": "Found , annular,  flow_mode at, 5, ! xtt= , 3721.8455231071603",
+        "Re": "Reynolds number for , 5,  is  143048149539796.16, lambda is ,9.137271333299771e-05"
+    },
+    {
+        "P1": 16249846.572844591,
+        "T1": 304.7,
+        "Flow": "Found , annular,  flow_mode at, 6, ! xtt= , 3663.3314533968796",
+        "Re": "Reynolds number for , 6,  is  143140840023657.9, lambda is ,9.135791769813795e-05"
+    },
+    {
+        "P1": 16249821.001652023,
+        "T1": 302.59999999999997,
+        "Flow": "Found , annular,  flow_mode at, 7, ! xtt= , 3593.307538496806",
+        "Re": "Reynolds number for , 7,  is  143236036992597.84, lambda is ,9.134273442890228e-05"
+    },
+    {
+        "P1": 16249795.430459455,
+        "T1": 300.2,
+        "Flow": "Found , annular,  flow_mode at, 8, ! xtt= , 4190.586876639244",
+        "Re": "Reynolds number for , 8,  is  161239085261747.47, lambda is ,8.867873743346314e-05"
+    },
+    {
+        "P1": 16249769.859266886,
+        "T1": 297.5,
+        "Flow": "Found , annular,  flow_mode at, 9, ! xtt= , 4080.2227106414125",
+        "Re": "Reynolds number for , 9,  is  161314398183699.0, lambda is ,8.866838525086235e-05"
+    }
+]
