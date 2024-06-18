@@ -6,6 +6,7 @@ sys.path.insert(0, '../pycThermopack/')
 from Tube_point import *
 
 
+@deprecated
 def pvt_block(point: Tube_point, new_pressure, new_temperature):
     point.temperature = new_temperature
     point.pressure = new_pressure
@@ -13,6 +14,7 @@ def pvt_block(point: Tube_point, new_pressure, new_temperature):
     return point
 
 
+@deprecated
 def main(path: str):
     point = Tube_point()
     start_point_from_excel(point, path)

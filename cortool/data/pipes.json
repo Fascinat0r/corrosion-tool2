@@ -1,0 +1,19 @@
+{
+    "pipeline_segments": [
+        {
+            "length_m": 16500,
+            "roughness_m": 0.000015,
+            "diameter_m": 386
+        },
+        {
+            "length_m": 56000,
+            "roughness_m": 0.000015,
+            "diameter_m": 482
+        },
+        {
+            "length_m": 35000,
+            "roughness_m": 0.000015,
+            "diameter_m": 386
+        }
+    ]
+}

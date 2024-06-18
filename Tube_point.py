@@ -1,11 +1,13 @@
 from typing import List
 
 import pandas as pd
+from deprecated import deprecated
 from thermopack.cubic import cubic
 
 from PVT import *
 
 
+@deprecated
 class Tube_point:
     name: str = 'mixture'  # name: string, name of the material
     phase_name: List[str] = ['gas']  # phase_name: list of strings, name of phases
@@ -42,6 +44,7 @@ class Tube_point:
     angle = 0  # angle: угол наклона трубы
 
 
+@deprecated
 def start_point_from_excel(point, excel_path):  # initialization of start pointы
     df = pd.read_excel(excel_path)
     _ = df['Unnamed: 1']
@@ -61,6 +64,7 @@ def start_point_from_excel(point, excel_path):  # initialization of start point�
     update_point_state(point)
 
 
+@deprecated
 def define_tube_params(point, diameter, length, density_old):
     q = point.velocity * point.diameter * point.diameter * density_old
     new_velocity = q / (diameter * diameter * point.overall_density)  # mass balance, pi/4 is skipped
@@ -70,6 +74,7 @@ def define_tube_params(point, diameter, length, density_old):
     point.velocity = new_velocity
 
 
+@deprecated
 def update_point_state(point):
     """
     Updates tube point parameters after changing local temperature and pressure
@@ -96,6 +101,7 @@ def update_point_state(point):
     point.vapor_viscosities = [ethanol_viscosity, n2_viscosity]
 
 
+@deprecated
 def calculate_Re(point):
     """
     Calculates the Reynolds number based on the total density and total viscosity of the medium.
@@ -104,6 +110,7 @@ def calculate_Re(point):
     return point.velocity * point.diameter * point.overall_density / point.overall_viscosity
 
 
+@deprecated
 def calculate_xtt(point):
     """
     Calculates the parameter by which the flow mode can be obtained.
@@ -120,10 +127,12 @@ def calculate_xtt(point):
             (gas_viscosity / liquid_viscosity) ** 0.1) * ((velocity / diameter) ** 0.5)
 
 
+@deprecated
 def calculate_overall_density(point):  # необходимо дописать учёт агрегатного состояния
     return sum(point.molar_composition[i] * point.components_density[i] for i in range(point.number_of_fluids))
 
 
+@deprecated
 def calculate_lambda(point):
     if point.reynolds_number < 2300:
         return 64 / point.reynolds_number
@@ -131,17 +140,20 @@ def calculate_lambda(point):
         return 0.316 / (point.reynolds_number ** 0.25)
 
 
+@deprecated
 def calculate_pressure_loss(point):
     xi = calculate_lambda(point) * point.length / point.diameter
     return (xi * point.velocity ** 2) * 0.5 * point.overall_density
 
 
+@deprecated
 def calculate_viscosity(point, friction_factor):
     liquid_viscosity = point.liquid_viscosities[0]  # ? liquid_overall_viscosity?
     gas_viscosity = point.liquid_viscosities[1]  # ?
     return friction_factor * liquid_viscosity + (1 - friction_factor) * gas_viscosity
 
 
+@deprecated
 def return_mode(xtt):
     if xtt < 10: return 'bubble'
     if 10 <= xtt < 100:
@@ -156,7 +168,7 @@ def return_mode(xtt):
 
 
 # liquid to solid viscosity calculation:
-
+@deprecated
 def return_friction_factor(xtt):
     """
     Outputs the friction factor to calculate the viscosity.
