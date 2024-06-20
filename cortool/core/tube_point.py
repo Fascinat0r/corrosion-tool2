@@ -2,6 +2,15 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List
 
+from thermopack.cubic import cubic
+
+from cortool.core.PVT import ethanol_viscosity_from_temperature, n2_viscosity_from_temperature
+
+
+class Phase(Enum):
+    LIQUID = auto()
+    GAS = auto()
+
 
 class FlowMode(Enum):
     BUBBLE = auto()
@@ -15,6 +24,7 @@ class FlowMode(Enum):
 @dataclass
 class FluidComponent:
     name: str
+    phase: Phase
     molar_mass: float
     density: float
     vapor_fraction: float
@@ -33,14 +43,14 @@ class TubePoint:
     diameter: float = 0.1
     length: float = 10
     components: List[FluidComponent] = field(default_factory=list)
-    flow_mode: FlowMode = FlowMode.UNDEFINED
     roughness: float = 0.01
     angle: int = 0
 
-    def add_component(self, name: str, molar_mass: float, density: float, vapor_fraction: float, liquid_fraction: float,
+    def add_component(self, name: str, phase: Phase, molar_mass: float, density: float, vapor_fraction: float,
+                      liquid_fraction: float,
                       liquid_viscosity: float, vapor_viscosity: float):
         self.components.append(
-            FluidComponent(name, molar_mass, density, vapor_fraction, liquid_fraction, liquid_viscosity,
+            FluidComponent(name, phase, molar_mass, density, vapor_fraction, liquid_fraction, liquid_viscosity,
                            vapor_viscosity))
 
     @property
@@ -48,12 +58,109 @@ class TubePoint:
         return len(self.components)
 
     @property
-    def overall_density(self) -> float:
+    def overall_density(self) -> float:  # TODO: необходимо дописать учёт агрегатного состояния
         return sum(comp.density * (comp.vapor_fraction + comp.liquid_fraction) for comp in
                    self.components) / self.number_of_fluids if self.number_of_fluids > 0 else 0
 
     @property
     def overall_viscosity(self) -> float:
-        # Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
+        # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
         return sum((comp.liquid_viscosity + comp.vapor_viscosity) / 2 for comp in
                    self.components) / self.number_of_fluids if self.number_of_fluids > 0 else 0
+
+    @property
+    def reynolds(self) -> float:
+        """
+        Calculates the Reynolds number based on the total density and total viscosity of the medium.
+        :return: Reynolds number
+        """
+        return self.velocity * self.diameter * self.overall_density / self.overall_viscosity
+
+    @property
+    def xtt(self) -> float:
+        """
+        Calculates the Lockhart-Martinelli parameter to determine flow mode.
+        This method dynamically identifies liquid and gas components.
+        """
+        liquid = next((c for c in self.components if c.phase == Phase.LIQUID), None)
+        gas = next((c for c in self.components if c.phase == Phase.GAS), None)
+
+        if not liquid or not gas:
+            return None  # Не найдены компоненты жидкости или газа
+
+        # Используя свойства жидкости и газа для вычисления xtt
+        xtt = ((1.096 / liquid.density) ** 0.5) * \
+              ((liquid.density / gas.density) ** 0.25) * \
+              ((gas.vapor_viscosity / liquid.liquid_viscosity) ** 0.1) * \
+              ((self.velocity / self.diameter) ** 0.5)
+        return xtt
+
+    @property
+    def flow_mode(self) -> FlowMode:  # TODO: предоставить формулы
+        cur_xtt = self.xtt
+        if cur_xtt is None:
+            return None  # Unable to compute without a valid xtt
+        if cur_xtt < 10:
+            return FlowMode.BUBBLE
+        if 10 <= cur_xtt < 100:
+            return FlowMode.PLUG
+        if 100 <= cur_xtt < 1000:
+            return FlowMode.SLUG
+        if 1000 <= cur_xtt < 10000:
+            return FlowMode.ANNULAR
+        if 10000 <= cur_xtt:
+            return FlowMode.MIST
+        return FlowMode.UNDEFINED
+
+    @property
+    def friction_factor(self) -> float:  # TODO: предоставить формулу
+        """
+        Determines the friction factor based on the Lockhart-Martinelli parameter.
+        This friction factor is used to calculate the viscosity in multiphase flow.
+        """
+        cur_xtt = self.xtt
+        if cur_xtt is None:
+            return None  # Unable to compute without a valid xtt
+
+        if cur_xtt < 10:
+            return 1
+        elif cur_xtt < 100:
+            return 0.9
+        elif cur_xtt < 1000:
+            return 0.8
+        elif cur_xtt < 10000:
+            return 0.7
+        else:
+            return 0.6
+
+    @property
+    def r_lambda(self) -> float:  # TODO: предоставить формулу
+        reynolds_number = self.reynolds
+        if reynolds_number < 2300:
+            return 64 / reynolds_number
+        else:
+            return 0.316 / (reynolds_number ** 0.25)
+
+    @property
+    def pressure_loss(self) -> float:
+        xi = self.r_lambda * self.length / self.diameter
+        return (xi * self.velocity ** 2) * 0.5 * self.overall_density
+
+    def update_self_state(self):
+        """
+        Updates tube self parameters using the cubic model and recalculates phase properties.
+        """
+        rk_fluid = cubic('N2,ETOH', 'SRK')  # Replace with updated method if available
+        results = rk_fluid.two_phase_tpflash(self.temperature, self.pressure,
+                                             [c.molar_mass for c in self.components])
+
+        for component, result in zip(self.components, results):
+            component.vapor_fraction = result['vapor_fraction']
+            component.liquid_fraction = result['liquid_fraction']
+            component.density = component.molar_mass / rk_fluid.specific_volume(self.temperature, self.pressure,
+                                                                                component.molar_mass)
+            # TODO: бред
+            component.liquid_viscosity = ethanol_viscosity_from_temperature(
+                self.temperature) if component.phase == Phase.LIQUID else component.liquid_viscosity
+            component.vapor_viscosity = n2_viscosity_from_temperature(
+                self.temperature) if component.phase == Phase.GAS else component.vapor_viscosity

@@ -1,7 +1,7 @@
 import copy
 import json
 
-from tube_point import TubePoint, calculate_pressure_loss
+from tube_point import TubePoint
 
 
 class PipelineSimulator:
@@ -39,7 +39,7 @@ class PipelineSimulator:
         for _ in range(num_segments):
             actual_length = min(segment_length, total_length)
             total_length -= actual_length
-            pressure_loss = calculate_pressure_loss(current_point, actual_length, diameter)
+            pressure_loss = current_point.pressure_loss(actual_length, diameter)
             new_pressure = current_point.pressure - pressure_loss
             new_temperature = current_point.temperature - (diameter * 0.1 * actual_length / 1000)
             next_point = copy.deepcopy(current_point)
