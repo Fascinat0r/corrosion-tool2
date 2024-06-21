@@ -1,10 +1,10 @@
 import copy
 import json
 
-from tube_point import TubePoint
+from cortool.models.segment import Segment
 
 
-class PipelineSimulator:
+class Pipeline:
     def __init__(self, data_path, segment_length=5000):
         """Инициализация симулятора с указанием пути к файлу с данными."""
         self.pipeline_segments = None
@@ -21,7 +21,7 @@ class PipelineSimulator:
 
     def setup(self, init_data):
         """Настройка начальной точки трубопровода."""
-        initial_point = TubePoint(init_data)
+        initial_point = Segment(init_data)
         # Параметры начальной точки могут быть заданы или загружены отдельно, здесь просто инициализация
         self.tube_points.append(initial_point)
 

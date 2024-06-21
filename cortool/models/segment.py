@@ -2,10 +2,6 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import List
 
-from thermopack.cubic import cubic
-
-from cortool.core.PVT import ethanol_viscosity_from_temperature, n2_viscosity_from_temperature
-
 
 class Phase(Enum):
     LIQUID = auto()
@@ -34,7 +30,7 @@ class FluidComponent:
 
 
 @dataclass
-class TubePoint:
+class Segment:
     name: str = 'mixture'
     phase_names: List[str] = field(default_factory=lambda: ['gas'])
     temperature: float = 300.0
@@ -96,7 +92,7 @@ class TubePoint:
         return xtt
 
     @property
-    def flow_mode(self) -> FlowMode:  # TODO: предоставить формулы
+    def flow_mode(self) -> FlowMode | None:  # TODO: предоставить формулы
         cur_xtt = self.xtt
         if cur_xtt is None:
             return None  # Unable to compute without a valid xtt
@@ -113,7 +109,7 @@ class TubePoint:
         return FlowMode.UNDEFINED
 
     @property
-    def friction_factor(self) -> float:  # TODO: предоставить формулу
+    def friction_factor(self) -> None | float:  # TODO: предоставить формулу
         """
         Determines the friction factor based on the Lockhart-Martinelli parameter.
         This friction factor is used to calculate the viscosity in multiphase flow.
@@ -123,7 +119,7 @@ class TubePoint:
             return None  # Unable to compute without a valid xtt
 
         if cur_xtt < 10:
-            return 1
+            return 1.0
         elif cur_xtt < 100:
             return 0.9
         elif cur_xtt < 1000:
@@ -145,22 +141,3 @@ class TubePoint:
     def pressure_loss(self) -> float:
         xi = self.r_lambda * self.length / self.diameter
         return (xi * self.velocity ** 2) * 0.5 * self.overall_density
-
-    def update_self_state(self):
-        """
-        Updates tube self parameters using the cubic model and recalculates phase properties.
-        """
-        rk_fluid = cubic('N2,ETOH', 'SRK')  # Replace with updated method if available
-        results = rk_fluid.two_phase_tpflash(self.temperature, self.pressure,
-                                             [c.molar_mass for c in self.components])
-
-        for component, result in zip(self.components, results):
-            component.vapor_fraction = result['vapor_fraction']
-            component.liquid_fraction = result['liquid_fraction']
-            component.density = component.molar_mass / rk_fluid.specific_volume(self.temperature, self.pressure,
-                                                                                component.molar_mass)
-            # TODO: бред
-            component.liquid_viscosity = ethanol_viscosity_from_temperature(
-                self.temperature) if component.phase == Phase.LIQUID else component.liquid_viscosity
-            component.vapor_viscosity = n2_viscosity_from_temperature(
-                self.temperature) if component.phase == Phase.GAS else component.vapor_viscosity
