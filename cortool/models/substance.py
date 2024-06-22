@@ -26,8 +26,9 @@ class Nitrogen(Substance):
         return (VISCOSITY_INIT * (temperature / T_INIT) ** 1.5) * (T_INIT + S) / (temperature + S)
 
 
-# Для использования:
-ethanol = Ethanol()
-nitrogen = Nitrogen()
-print("Viscosity of Ethanol at 300K:", ethanol.viscosity_from_temperature(300))
-print("Viscosity of Nitrogen at 300K:", nitrogen.viscosity_from_temperature(300))
+# Пример:
+substances = list()
+substances.append(Ethanol())
+substances.append(Nitrogen())
+for sub in substances:
+    print(print(f"Viscosity of {sub.__class__} at 300K:", sub.viscosity_from_temperature(300)))

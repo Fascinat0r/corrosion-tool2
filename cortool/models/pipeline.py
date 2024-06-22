@@ -8,7 +8,7 @@ class Pipeline:
     def __init__(self, data_path, segment_length=5000):
         """Инициализация симулятора с указанием пути к файлу с данными."""
         self.pipeline_segments = None
-        self.tube_points = []
+        self.tube_sections = []
         self.data_path = data_path
         self.segment_length = segment_length  # Максимальная длина сегмента трубопровода
         self.load_data()
@@ -23,14 +23,14 @@ class Pipeline:
         """Настройка начальной точки трубопровода."""
         initial_point = Segment(init_data)
         # Параметры начальной точки могут быть заданы или загружены отдельно, здесь просто инициализация
-        self.tube_points.append(initial_point)
+        self.tube_sections.append(initial_point)
 
     def simulate(self):
         """Моделирование течения в трубопроводе, обработка каждого участка."""
-        current_point = self.tube_points[0]
+        current_point = self.tube_sections[0]
         for segment in self.pipeline_segments:
             self.process_segment(current_point, segment['diameter_m'], segment['length_m'])
-            current_point = self.tube_points[-1]  # Обновление текущей точки после обработки сегмента
+            current_point = self.tube_sections[-1]  # Обновление текущей точки после обработки сегмента
 
     def process_segment(self, current_point, diameter, total_length):
         """Обработка одного участка трубопровода, разбивка на сегменты."""
@@ -44,9 +44,9 @@ class Pipeline:
             new_temperature = current_point.temperature - (diameter * 0.1 * actual_length / 1000)
             next_point = copy.deepcopy(current_point)
             next_point.update_conditions(new_pressure, new_temperature)
-            self.tube_points.append(next_point)
+            self.tube_sections.append(next_point)
 
     def print_results(self):
         """Вывод результатов моделирования каждого сегмента."""
-        for i, point in enumerate(self.tube_points):
-            print(f'Segment {i}: Pressure = {point.pressure}, Temperature = {point.temperature}')
+        for i, point in enumerate(self.tube_sections):
+            print(f'Section {i}: Pressure = {point.pressure}, Temperature = {point.temperature}')

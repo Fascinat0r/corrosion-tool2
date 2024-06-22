@@ -32,7 +32,6 @@ class FluidComponent:
 @dataclass
 class Segment:
     name: str = 'mixture'
-    phase_names: List[str] = field(default_factory=lambda: ['gas'])
     temperature: float = 300.0
     pressure: float = 101325.0
     velocity: float = 0.5
@@ -73,7 +72,7 @@ class Segment:
         return self.velocity * self.diameter * self.overall_density / self.overall_viscosity
 
     @property
-    def xtt(self) -> float:
+    def xtt(self) -> float | None:
         """
         Calculates the Lockhart-Martinelli parameter to determine flow mode.
         This method dynamically identifies liquid and gas components.

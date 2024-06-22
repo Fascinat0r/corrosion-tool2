@@ -1,5 +1,5 @@
 {
-    "pipeline_segments": [
+    "pipeline_sections": [
         {
             "length_m": 16500,
             "roughness_m": 0.000015,
