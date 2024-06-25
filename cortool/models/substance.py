@@ -1,6 +1,8 @@
 import math
 from abc import ABC, abstractmethod
 
+from cortool.constants import UNIVERSAL_GAS_CONSTANT
+
 
 class Substance(ABC):
     name: str
@@ -15,6 +17,11 @@ class Substance(ABC):
         """Метод для расчёта вязкости в зависимости от температуры"""
         pass
 
+    @abstractmethod
+    def get_density(self, temperature: float, pressure: float) -> float:
+        """Метод для расчёта плотности в граммах на метр кубический"""
+        pass
+
 
 class Ethanol(Substance):
     def __init__(self):
@@ -27,6 +34,9 @@ class Ethanol(Substance):
         D = -1.132 * 1e-5
         return A * math.exp(B / temperature + C * temperature + D * temperature ** 2)
 
+    def get_density(self, temperature: float, pressure: float) -> float:
+        pass
+
 
 class Nitrogen(Substance):
     def __init__(self):
@@ -38,6 +48,10 @@ class Nitrogen(Substance):
         S = 104.7
         return (VISCOSITY_INIT * (temperature / T_INIT) ** 1.5) * (T_INIT + S) / (temperature + S)
 
+    def get_density(self, temperature: float, pressure: float) -> float:
+        """Вычислние плотности азота, используя уравнение состояния идеального газа"""
+        return pressure * self.molar_mass / (UNIVERSAL_GAS_CONSTANT * temperature)
+
 
 def create_substance_dictionary():
     substance_dict = {}
@@ -45,6 +59,14 @@ def create_substance_dictionary():
         instance = subclass()
         substance_dict[instance.name] = instance
     return substance_dict
+
+
+def create_substance(name: str) -> Substance:
+    """ Функция создания объекта Substance на основе строки. """
+    if name in substance_dict:
+        return substance_dict[name]
+    else:
+        raise ValueError(f"No substance class defined for {name}")
 
 
 # Использование словаря
