@@ -4,7 +4,7 @@ from cortool.models.component import Component
 from cortool.models.segment import Segment, PipeProperties
 
 
-class Section:
+class PipeSection:
     """
     Класс, представляющий цельную однородную секцию трубопровода.
     Для моделирования потока, секция разбивается на сегменты, в каждом из которых происходит симуляция.
