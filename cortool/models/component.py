@@ -1,7 +1,6 @@
-from dataclasses import dataclass
 from enum import Enum, auto
 
-from cortool.models.substance import Substance, Ethanol, Nitrogen
+from cortool.models.substance import Substance, create_substance
 
 
 class Phase(Enum):
@@ -9,39 +8,27 @@ class Phase(Enum):
     GAS = auto()
 
 
-@dataclass
 class Component:
-    name: str
-    substance: Substance
-    temperature: float
+    substance: Substance  # Химический элемент
+    temperature: float  # Температура
+    pressure: float  # Давление
     fraction: float  # Доля компонента в потоке
-    phase: Phase
-    density: float = None  # Плотность, будет рассчитываться динамически
-    viscosity: float = None  # Вязкость, будет рассчитываться динамисески
+    phase: Phase  # Агрегатное состояние компонента
+    velocity: float  # Скорость компонента в потоке
 
-    def __post_init__(self):
-        self.update_properties()
-
-    def update_properties(self):
-        """Обновление свойств компонента на основе температуры."""
-        self.density = self.calculate_density(self.temperature)
-        self.viscosity = self.substance.get_viscosity(self.temperature)
-
-    def calculate_density(self, temperature: float) -> float:
-        """Метод для расчета плотности, может включать зависимость от температуры."""
-        # Примерный расчет, нужна конкретная формула или метод
-        return self.substance.molar_mass / (0.0821 * temperature)
-
-    def set_temperature(self, temperature: float):
+    def __init__(self, substance_name: str, temperature: float, pressure: float, velocity: float, fraction: float,
+                 phase: Phase):
+        self.substance = create_substance(substance_name)
         self.temperature = temperature
-        self.update_properties()
+        self.pressure = pressure
+        self.fraction = fraction
+        self.phase = phase
+        self.velocity = velocity
 
+    @property
+    def density(self) -> float:
+        return self.substance.get_density(self.temperature, self.pressure)
 
-# Использование:
-ethanol_component = Component("Ethanol", Ethanol(), 46.07, 0.7, Phase.LIQUID)
-nitrogen_component = Component("Nitrogen", Nitrogen(), 28.02, 0.3, Phase.GAS)
-ethanol_component.set_temperature(300)
-nitrogen_component.set_temperature(300)
-
-print(f"Density and viscosity of Ethanol at 300K: {ethanol_component.density}, {ethanol_component.viscosity}")
-print(f"Density and viscosity of Nitrogen at 300K: {nitrogen_component.density}, {nitrogen_component.viscosity}")
+    @property
+    def viscosity(self) -> float:
+        return self.substance.get_viscosity(self.temperature)
