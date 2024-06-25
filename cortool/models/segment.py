@@ -1,11 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List
 
-
-class Phase(Enum):
-    LIQUID = auto()
-    GAS = auto()
+from cortool.models.component import Component, Phase
 
 
 class FlowMode(Enum):
@@ -18,35 +15,29 @@ class FlowMode(Enum):
 
 
 @dataclass
-class FluidComponent:
-    name: str
-    phase: Phase
-    molar_mass: float
-    density: float
-    vapor_fraction: float
-    vapor_viscosity: float
-    liquid_fraction: float
-    liquid_viscosity: float
+class PipeProperties:
+    diameter: float
+    length: float
+    roughness: float
+    angle: float  # TODO: заменить на три составляющие угла
 
 
-@dataclass
 class Segment:
-    name: str = 'mixture'
-    temperature: float = 300.0
-    pressure: float = 101325.0
-    velocity: float = 0.5
-    diameter: float = 0.1
-    length: float = 10
-    components: List[FluidComponent] = field(default_factory=list)
-    roughness: float = 0.01
-    angle: int = 0
+    """
+    Класс, представляющий один сегмент от цельной трубы.
+    Используется для моделирования потока внутри трубы.
+    """
+    prop: PipeProperties  # Свойства трубы, сегментом которого является объект
+    length: float  # Длина сегмента
+    components: List[Component] = None  # Список компонентов в потоке
 
-    def add_component(self, name: str, phase: Phase, molar_mass: float, density: float, vapor_fraction: float,
-                      liquid_fraction: float,
-                      liquid_viscosity: float, vapor_viscosity: float):
-        self.components.append(
-            FluidComponent(name, phase, molar_mass, density, vapor_fraction, liquid_fraction, liquid_viscosity,
-                           vapor_viscosity))
+    def __init__(self, prop: PipeProperties, length: float, components: List[Component] = None):
+        self.prop = prop
+        self.length = length
+        if components is None:
+            self.components = []
+        else:
+            self.components = components
 
     @property
     def number_of_fluids(self) -> int:
@@ -54,14 +45,19 @@ class Segment:
 
     @property
     def overall_density(self) -> float:  # TODO: необходимо дописать учёт агрегатного состояния
-        return sum(comp.density * (comp.vapor_fraction + comp.liquid_fraction) for comp in
-                   self.components) / self.number_of_fluids if self.number_of_fluids > 0 else 0
+        return sum(comp.density * comp.fraction for comp in self.components) \
+               / self.number_of_fluids if self.number_of_fluids > 0 else 0
 
     @property
     def overall_viscosity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
-        return sum((comp.liquid_viscosity + comp.vapor_viscosity) / 2 for comp in
-                   self.components) / self.number_of_fluids if self.number_of_fluids > 0 else 0
+        return sum(comp.viscosity * comp.fraction for comp in self.components) \
+               / self.number_of_fluids if self.number_of_fluids > 0 else 0
+
+    @property
+    def velocity(self) -> float:
+        # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
+        return sum(comp.velocity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def reynolds(self) -> float:
@@ -69,7 +65,7 @@ class Segment:
         Calculates the Reynolds number based on the total density and total viscosity of the medium.
         :return: Reynolds number
         """
-        return self.velocity * self.diameter * self.overall_density / self.overall_viscosity
+        return self.velocity * self.prop.diameter * self.overall_density / self.overall_viscosity
 
     @property
     def xtt(self) -> float | None:
@@ -86,12 +82,15 @@ class Segment:
         # Используя свойства жидкости и газа для вычисления xtt
         xtt = ((1.096 / liquid.density) ** 0.5) * \
               ((liquid.density / gas.density) ** 0.25) * \
-              ((gas.vapor_viscosity / liquid.liquid_viscosity) ** 0.1) * \
-              ((self.velocity / self.diameter) ** 0.5)
+              ((gas.viscosity / liquid.viscosity) ** 0.1) * \
+              ((self.velocity / self.prop.diameter) ** 0.5)
         return xtt
 
     @property
     def flow_mode(self) -> FlowMode | None:  # TODO: предоставить формулы
+        """
+        Determines the flow mode based on the Lockhart-Martinelli parameter.
+        """
         cur_xtt = self.xtt
         if cur_xtt is None:
             return None  # Unable to compute without a valid xtt
@@ -130,6 +129,9 @@ class Segment:
 
     @property
     def r_lambda(self) -> float:  # TODO: предоставить формулу
+        """
+        Calculates the lambda coefficient based on the Reynolds number.
+        """
         reynolds_number = self.reynolds
         if reynolds_number < 2300:
             return 64 / reynolds_number
@@ -138,5 +140,8 @@ class Segment:
 
     @property
     def pressure_loss(self) -> float:
-        xi = self.r_lambda * self.length / self.diameter
+        """
+        Calculates the pressure loss in the segment based on the lambda coefficient.
+        """
+        xi = self.r_lambda * self.length / self.prop.diameter
         return (xi * self.velocity ** 2) * 0.5 * self.overall_density
