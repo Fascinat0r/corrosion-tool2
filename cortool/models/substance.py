@@ -5,12 +5,11 @@ from cortool.constants import UNIVERSAL_GAS_CONSTANT
 
 
 class Substance(ABC):
-    name: str
-    molar_mass: float  # Молярная масса вещества в г/моль
 
-    def __init__(self, name, molar_mass: float):
+    def __init__(self, name, molar_mass, specific_heat_capacity):
         self.name = name
-        self.molar_mass = molar_mass
+        self.molar_mass = molar_mass  # Молярная масса вещества в г/моль
+        self.specific_heat_capacity = specific_heat_capacity  # Дж/(кг·К)
 
     @abstractmethod
     def get_viscosity(self, temperature: float) -> float:
@@ -25,7 +24,7 @@ class Substance(ABC):
 
 class Ethanol(Substance):
     def __init__(self):
-        super().__init__(name="ethanol", molar_mass=46.07)
+        super().__init__(name="ethanol", molar_mass=46.07, specific_heat_capacity=2470)
 
     def get_viscosity(self, temperature: float) -> float:
         A = 0.00201 * 1e-6
@@ -40,7 +39,7 @@ class Ethanol(Substance):
 
 class Nitrogen(Substance):
     def __init__(self):
-        super().__init__(name="nitrogen", molar_mass=28.02)
+        super().__init__(name="nitrogen", molar_mass=28.02, specific_heat_capacity=1040)
 
     def get_viscosity(self, temperature: float) -> float:
         VISCOSITY_INIT = 1.7e-5
