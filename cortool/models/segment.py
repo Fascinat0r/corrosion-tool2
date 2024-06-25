@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
+from functools import cached_property
 from typing import List
 
 from cortool.models.component import Component, Phase
@@ -20,6 +21,8 @@ class PipeProperties:
     length: float
     roughness: float
     angle: float  # TODO: заменить на три составляющие угла
+    heat_transfer_coefficient: float  # Коэффициент теплоотдачи, Вт/(м²·К)
+    ambient_temperature: float  # Температура окружающей среды, К
 
 
 class Segment:
@@ -39,25 +42,45 @@ class Segment:
         else:
             self.components = components
 
+    def get_output_components(self):
+        delta_T = self.temperature_loss()
+        delta_P = self.pressure_loss()
+        new_temperature = self.temperature - delta_T
+        new_pressure = self.pressure - delta_P
+
+        # Обновление состояния каждого компонента
+        for component in self.components:
+            component.temperature = new_temperature
+            component.pressure = new_pressure
+            # Fraction не меняется
+            # Phase не меняется
+            # Velocity не меняется
+
     @property
     def number_of_fluids(self) -> int:
         return len(self.components)
 
     @property
     def overall_density(self) -> float:  # TODO: необходимо дописать учёт агрегатного состояния
-        return sum(comp.density * comp.fraction for comp in self.components) \
-               / self.number_of_fluids if self.number_of_fluids > 0 else 0
+        return sum(comp.density * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def overall_viscosity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
-        return sum(comp.viscosity * comp.fraction for comp in self.components) \
-               / self.number_of_fluids if self.number_of_fluids > 0 else 0
+        return sum(comp.viscosity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
-    @property
+    @cached_property
     def velocity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
         return sum(comp.velocity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+
+    @cached_property
+    def temperature(self) -> float:
+        return sum(comp.temperature * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+
+    @cached_property
+    def pressure(self) -> float:
+        return sum(comp.pressure * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def reynolds(self) -> float:
@@ -138,10 +161,22 @@ class Segment:
         else:
             return 0.316 / (reynolds_number ** 0.25)
 
-    @property
-    def pressure_loss(self) -> float:
+    def pressure_loss(self) -> float:  # TODO: предоставить формулу
         """
         Calculates the pressure loss in the segment based on the lambda coefficient.
         """
         xi = self.r_lambda * self.length / self.prop.diameter
         return (xi * self.velocity ** 2) * 0.5 * self.overall_density
+
+    def temperature_loss(self) -> float:
+        """ Расчет потери температуры для сегмента трубы. """
+        total_mass_flow = sum(comp.density * comp.fraction for comp in self.components)  # Общий массовый поток
+        total_heat_capacity = sum(
+            comp.substance.specific_heat_capacity * comp.density * comp.fraction for comp in self.components)
+        if total_mass_flow == 0 or total_heat_capacity == 0:
+            return 0
+
+        q = self.prop.heat_transfer_coefficient * (
+                self.temperature - self.prop.ambient_temperature)  # Тепловой поток
+        delta_temperature = q / (total_mass_flow * total_heat_capacity)  # Изменение температуры
+        return delta_temperature
