@@ -25,11 +25,10 @@ class PipeSection:
         while remaining_length > 0:
             current_segment_length = min(segment_length, remaining_length)
             segment = Segment(prop=self.prop, length=current_segment_length, components=current_components.copy())
-            segment.simulate()  # Метод для симуляции процессов в сегменте #TODO: реализовать
             self.segments.append(segment)
 
             # Обновляем компоненты для следующего сегмента на основе выхода из текущего
-            current_components = segment.get_output_components()  # TODO: реализовать
+            current_components = segment.get_output_components()
             remaining_length -= current_segment_length
 
     def calculate_overall_properties(self):
@@ -42,5 +41,5 @@ class PipeSection:
 
 # Пример использования:
 properties = PipeProperties(0.5, 1000.0, 0.01, 0)
-section = Section(properties)
+section = PipeSection(properties)
 section.calculate_overall_properties()
