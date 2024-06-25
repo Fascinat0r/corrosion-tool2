@@ -39,7 +39,7 @@ def main(path: str):
               calculate_lambda(tube_points[i - 1]))
         diff = calculate_pressure_loss(point)
         P1 = tube_points[i - 1].pressure - diff
-        T1 = tube_points[i - 1].temperature - i * 0.3
+        T1 = tube_points[i - 1].temperature - i * 0.3 # что это за кринж
         list_p1.append(P1)
         list_t1.append(T1)
         print('P1: ', P1, ', T1: ', T1)
