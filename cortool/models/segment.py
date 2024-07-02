@@ -55,6 +55,7 @@ class Segment:
             # Fraction не меняется
             # Phase не меняется
             # Velocity не меняется
+        return self.components
 
     @property
     def number_of_fluids(self) -> int:

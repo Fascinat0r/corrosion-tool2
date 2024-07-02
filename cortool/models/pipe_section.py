@@ -1,6 +1,6 @@
 from typing import List
 
-from cortool.models.component import Component
+from cortool.models.component import Component, Phase
 from cortool.models.segment import Segment, PipeProperties
 
 
@@ -40,6 +40,10 @@ class PipeSection:
 
 
 # Пример использования:
-properties = PipeProperties(0.5, 1000.0, 0.01, 0)
+properties = PipeProperties(0.5, 1000.0, 0.01, 0, 10, 300)
 section = PipeSection(properties)
+components = [Component('ethanol', 375, 16250000, 10, 0.5, Phase.LIQUID),
+              Component('nitrogen', 375, 16250000, 10, 0.5, Phase.GAS)]
+
+section.simulate_flow(components, 20)
 section.calculate_overall_properties()
