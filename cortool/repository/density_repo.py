@@ -31,7 +31,7 @@ class DensityModule:
 
 
 # Пример использования
-density_module = DensityModule('../data/')
+density_module = DensityModule('cortool/data/')
 try:
     density_ethanol = density_module.get_density('ethanol', 300)
     print(f"Density of Ethanol at 300K: {density_ethanol}")

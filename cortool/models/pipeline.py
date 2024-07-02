@@ -1,6 +1,8 @@
 import json
 from typing import List
 
+import pandas as pd
+
 from cortool.models.component import Component
 from cortool.models.pipe_section import PipeSection, PipeProperties
 
@@ -55,7 +57,39 @@ class Pipeline:
             for comp in current_components:
                 print(f"{comp.substance.name} - Density: {comp.density}, Viscosity: {comp.viscosity}")
 
+    def save_sections_data_to_csv(self, file_path):
+        # Собираем данные из всех секций и сегментов
+        data = []
+        for section_index, section in enumerate(self.sections):
+            for segment_index, segment in enumerate(section.segments):
+                segment_data = {
+                    "Section Index": section_index,
+                    "Segment Index": segment_index,
+                    "Segment Length": segment.length,
+                    "Diameter": section.prop.diameter,
+                    "Roughness": section.prop.roughness,
+                    "Angle": section.prop.angle,
+                    "Heat Transfer Coefficient": section.prop.heat_transfer_coefficient,
+                    "Ambient Temperature": section.prop.ambient_temperature,
+                    "Average Pressure": segment.pressure,
+                    "Average Temperature": segment.temperature,
+                    "Average Density": segment.overall_density,
+                    "Average Viscosity": segment.overall_viscosity,
+                    "Flow Mode": segment.flow_mode.name if segment.flow_mode else "Undefined",
+                    "Reynolds Number": segment.reynolds,
+                    "Friction Factor": segment.friction_factor if segment.friction_factor else "N/A",
+                    "Pressure Loss": segment.pressure_loss(),
+                    "Temperature Loss": segment.temperature_loss()
+                }
+                data.append(segment_data)
+
+        # Создаем DataFrame
+        df = pd.DataFrame(data)
+        # Сохраняем в CSV
+        df.to_csv(file_path, index=False)
+        print(f"Data saved to {file_path}")
+
 
 # Пример использования
-pipeline = Pipeline('../data/pipes.json', '../data/input.json')
-pipeline.simulate()
+# pipeline = Pipeline('../data/pipes.json', '../data/input.json')
+# pipeline.simulate()
