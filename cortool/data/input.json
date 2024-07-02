@@ -1,22 +1,20 @@
 {
-    "temperature_K": 311,
-    "flow_m3_per_hour": 16500,
-    "inlet_pressure_Pa": 16250000,
-    "speed_m_per_s": 5.0,
-    "components": [
-        {
-            "name": "methane",
-            "molar_mass_kg_per_mol": 0.01604,
-            "mass_percentage": 0.8,
-            "density_kg_per_m3": 665,
-            "viscosity_Pa_s": 0.000011
-        },
-        {
-            "name": "H2O",
-            "molar_mass_kg_per_mol": 0.018015,
-            "mass_percentage": 0.2,
-            "density_kg_per_m3": 997,
-            "viscosity_Pa_s": 0.00089
-        }
-    ]
+  "components": [
+    {
+      "name": "ethanol",
+      "temperature": 311,
+      "pressure": 16250000,
+      "velocity": 5.0,
+      "fraction": 0.8,
+      "phase": "liquid"
+    },
+    {
+      "name": "nitrogen",
+      "temperature": 311,
+      "pressure": 16250000,
+      "velocity": 5.0,
+      "fraction": 0.2,
+      "phase": "gas"
+    }
+  ]
 }
