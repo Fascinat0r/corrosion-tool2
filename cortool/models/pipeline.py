@@ -1,52 +1,61 @@
-import copy
 import json
+from typing import List
 
-from cortool.models.segment import Segment
+from cortool.models.component import Component
+from cortool.models.pipe_section import PipeSection, PipeProperties
 
 
 class Pipeline:
-    def __init__(self, data_path, segment_length=5000):
-        """Инициализация симулятора с указанием пути к файлу с данными."""
-        self.pipeline_segments = None
-        self.tube_sections = []
-        self.data_path = data_path
-        self.segment_length = segment_length  # Максимальная длина сегмента трубопровода
-        self.load_data()
+    def __init__(self, sections_config_path: str, components_config_path: str):
+        self.sections = []
+        self.load_sections(sections_config_path)
+        self.initial_components = self.load_components(components_config_path)
 
-    def load_data(self):
-        """Загрузка данных из JSON файла."""
-        with open(self.data_path, 'r') as file:
+    def load_sections(self, filepath: str):
+        """Загружает секции трубопровода из JSON файла."""
+        with open(filepath, 'r') as file:
             data = json.load(file)
-        self.pipeline_segments = data['pipeline_segments']
+            if self.sections is None:
+                self.sections = []
+            for section_data in data['pipeline_sections']:
+                properties = PipeProperties(
+                    diameter=section_data['diameter_m'],
+                    length=section_data['length_m'],
+                    roughness=section_data['roughness_m'],
+                    angle=section_data['angle_deg'],
+                    heat_transfer_coefficient=section_data['heat_transfer_coefficient'],
+                    ambient_temperature=section_data['ambient_temperature']
+                )
+                new_section = PipeSection(prop=properties)
+                self.sections.append(new_section)
 
-    def setup(self, init_data):
-        """Настройка начальной точки трубопровода."""
-        initial_point = Segment(init_data)
-        # Параметры начальной точки могут быть заданы или загружены отдельно, здесь просто инициализация
-        self.tube_sections.append(initial_point)
+    def load_components(self, config_path: str) -> List[Component]:
+        """Загрузка начальных компонентов потока из файла JSON."""
+        with open(config_path, 'r') as file:
+            config = json.load(file)
+            components = []
+            for comp in config['components']:
+                component = Component(comp['name'],
+                                      comp['temperature'],
+                                      comp['pressure'],
+                                      comp['velocity'],
+                                      comp['fraction'],
+                                      comp['phase'])
+                components.append(component)
+            return components
 
     def simulate(self):
-        """Моделирование течения в трубопроводе, обработка каждого участка."""
-        current_point = self.tube_sections[0]
-        for segment in self.pipeline_segments:
-            self.process_segment(current_point, segment['diameter_m'], segment['length_m'])
-            current_point = self.tube_sections[-1]  # Обновление текущей точки после обработки сегмента
+        """Симулирует поток через всю систему трубопровода."""
+        current_components = self.initial_components
+        for section in self.sections:
+            current_components = section.simulate_flow(current_components,
+                                                       segment_length=1000)  # Предполагаемая длина сегмента
+            # Вывод результатов каждой секции
+            print(f"Results after section with diameter {section.prop.diameter}:")
+            for comp in current_components:
+                print(f"{comp.substance.name} - Density: {comp.density}, Viscosity: {comp.viscosity}")
 
-    def process_segment(self, current_point, diameter, total_length):
-        """Обработка одного участка трубопровода, разбивка на сегменты."""
-        num_segments = (total_length + self.segment_length - 1) // self.segment_length
-        segment_length = self.segment_length
-        for _ in range(num_segments):
-            actual_length = min(segment_length, total_length)
-            total_length -= actual_length
-            pressure_loss = current_point.pressure_loss(actual_length, diameter)
-            new_pressure = current_point.pressure - pressure_loss
-            new_temperature = current_point.temperature - (diameter * 0.1 * actual_length / 1000)
-            next_point = copy.deepcopy(current_point)
-            next_point.update_conditions(new_pressure, new_temperature)
-            self.tube_sections.append(next_point)
 
-    def print_results(self):
-        """Вывод результатов моделирования каждого сегмента."""
-        for i, point in enumerate(self.tube_sections):
-            print(f'Section {i}: Pressure = {point.pressure}, Temperature = {point.temperature}')
+# Пример использования
+pipeline = Pipeline('../data/pipes.json', '../data/input.json')
+pipeline.simulate()

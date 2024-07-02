@@ -30,6 +30,7 @@ class PipeSection:
             # Обновляем компоненты для следующего сегмента на основе выхода из текущего
             current_components = segment.get_output_components()
             remaining_length -= current_segment_length
+        return current_components
 
     def calculate_overall_properties(self):
         """Вычисляет общие свойства секции на основе свойств сегментов."""
