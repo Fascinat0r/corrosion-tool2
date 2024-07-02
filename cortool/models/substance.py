@@ -2,6 +2,7 @@ import math
 from abc import ABC, abstractmethod
 
 from cortool.constants import UNIVERSAL_GAS_CONSTANT
+from repository.density_repo import density_module
 
 
 class Substance(ABC):
@@ -34,7 +35,7 @@ class Ethanol(Substance):
         return A * math.exp(B / temperature + C * temperature + D * temperature ** 2)
 
     def get_density(self, temperature: float, pressure: float) -> float:
-        pass
+        return density_module.get_density(self.name, temperature)
 
 
 class Nitrogen(Substance):
