@@ -7,6 +7,9 @@ from cortool.models.component import Component, Phase
 
 
 class FlowMode(Enum):
+    """
+    Enum класс для определения режима потока в трубе.
+    """
     BUBBLE = auto()
     PLUG = auto()
     SLUG = auto()
@@ -17,6 +20,9 @@ class FlowMode(Enum):
 
 @dataclass
 class PipeProperties:
+    """
+    Класс, представляющий свойства трубы.
+    """
     diameter: float
     length: float
     roughness: float
@@ -43,6 +49,11 @@ class Segment:
             self.components = components
 
     def get_output_components(self):
+        """
+        Рассчитывает выходные параметры для каждого компонента в сегменте.
+        То есть модель трубопровода преполагает, что мы пренебрегаем изменением свойств внутри сегмента.
+        Поэтому мы считаем потери только на концах сегмента.
+        """
         delta_T = self.temperature_loss()
         delta_P = self.pressure_loss()
         new_temperature = self.temperature - delta_T
@@ -59,43 +70,60 @@ class Segment:
 
     @property
     def number_of_fluids(self) -> int:
+        """
+        Возвращает количество компонентов в потоке.
+        """
         return len(self.components)
 
     @property
     def overall_density(self) -> float:  # TODO: необходимо дописать учёт агрегатного состояния
+        """
+        Вычисляет общую плотность потока на основе плотности каждого компонента.
+        """
         return sum(comp.density * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def overall_viscosity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
+        """
+        Вычисляет общую вязкость потока на основе вязкости каждого компонента.
+        """
         return sum(comp.viscosity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def velocity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
+        """
+        Вычисляет общую скорость потока на основе скорости каждого компонента.
+        """
         return sum(comp.velocity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def temperature(self) -> float:
+        """
+        Вычисляет общую температуру потока на основе температуры каждого компонента.
+        """
         return sum(comp.temperature * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def pressure(self) -> float:
+        """
+        Вычисляет общее давление потока на основе давления каждого компонента.
+        """
         return sum(comp.pressure * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def reynolds(self) -> float:
         """
-        Calculates the Reynolds number based on the total density and total viscosity of the medium.
-        :return: Reynolds number
+        Вычисляет число Рейнольдса на основе общей плотности и общей вязкости среды.
+        :return: Число Рейнольдса
         """
         return self.velocity * self.prop.diameter * self.overall_density / self.overall_viscosity
 
     @property
     def xtt(self) -> float | None:
         """
-        Calculates the Lockhart-Martinelli parameter to determine flow mode.
-        This method dynamically identifies liquid and gas components.
+        Вычисляет параметр Локхарта-Мартинелли для определения режима потока.
         """
         liquid = next((c for c in self.components if c.phase == Phase.LIQUID), None)
         gas = next((c for c in self.components if c.phase == Phase.GAS), None)
@@ -113,7 +141,7 @@ class Segment:
     @property
     def flow_mode(self) -> FlowMode | None:  # TODO: предоставить формулы
         """
-        Determines the flow mode based on the Lockhart-Martinelli parameter.
+        Определяет режим потока на основе параметра Локхарта-Мартинелли.
         """
         cur_xtt = self.xtt
         if cur_xtt is None:
@@ -133,8 +161,8 @@ class Segment:
     @property
     def friction_factor(self) -> None | float:  # TODO: предоставить формулу
         """
-        Determines the friction factor based on the Lockhart-Martinelli parameter.
-        This friction factor is used to calculate the viscosity in multiphase flow.
+        Определяет коэффициент трения на основе параметра Локхарта-Мартинелли.
+        Этот коэффициент трения используется для расчета вязкости в многофазном потоке.
         """
         cur_xtt = self.xtt
         if cur_xtt is None:
@@ -154,7 +182,7 @@ class Segment:
     @property
     def r_lambda(self) -> float:  # TODO: предоставить формулу
         """
-        Calculates the lambda coefficient based on the Reynolds number.
+        Вычисляет лямбда-коэффициент на основе числа Рейнольдса.
         """
         reynolds_number = self.reynolds
         if reynolds_number < 2300:
@@ -164,19 +192,22 @@ class Segment:
 
     def pressure_loss(self) -> float:  # TODO: предоставить формулу
         """
-        Calculates the pressure loss in the segment based on the lambda coefficient.
+        Вычисляет потерю давления в сегменте на основе лямбда-коэффициента.
         """
         xi = self.r_lambda * self.length / self.prop.diameter
         return (xi * self.velocity ** 2) * 0.5 * self.overall_density
 
     def temperature_loss(self) -> float:
-        """ Расчет потери температуры для сегмента трубы. """
+        """
+        Расчет потери температуры для сегмента трубы.
+        """
+        # Расчет общего массового потока и теплоемкости
         total_mass_flow = sum(comp.density * comp.fraction for comp in self.components)  # Общий массовый поток
         total_heat_capacity = sum(
             comp.substance.specific_heat_capacity * comp.density * comp.fraction for comp in self.components)
         if total_mass_flow == 0 or total_heat_capacity == 0:
             return 0
-
+        # Расчет теплового потока и изменения температуры
         q = self.prop.heat_transfer_coefficient * (
                 self.temperature - self.prop.ambient_temperature)  # Тепловой поток
         delta_temperature = q / (total_mass_flow * total_heat_capacity)  # Изменение температуры

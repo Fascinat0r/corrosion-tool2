@@ -4,11 +4,18 @@ from cortool.models.substance import Substance, create_substance
 
 
 class Phase(Enum):
+    """
+    Enum класс для определения агрегатного состояния компонента потока.
+    """
     LIQUID = auto()
     GAS = auto()
 
 
 class Component:
+    """
+    Класс, представляющий компонент потока.
+    Описывает физические свойства компонента, такие как плотность, вязкость и т.д.
+    """
     substance: Substance  # Химический элемент
     temperature: float  # Температура
     pressure: float  # Давление
@@ -27,8 +34,14 @@ class Component:
 
     @property
     def density(self) -> float:
+        """
+        Вычисляет плотность компонента потока.
+        """
         return self.substance.get_density(self.temperature, self.pressure)
 
     @property
     def viscosity(self) -> float:
+        """
+        Вычисляет вязкость компонента потока.
+        """
         return self.substance.get_viscosity(self.temperature)

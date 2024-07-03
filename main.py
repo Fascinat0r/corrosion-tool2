@@ -1,6 +1,7 @@
 from models.pipeline import Pipeline
 from services.visualization import plot_pipeline_data
 
+
 def main():
     pipeline = Pipeline('cortool/data/pipes.json', 'cortool/data/input.json')
     pipeline.simulate()

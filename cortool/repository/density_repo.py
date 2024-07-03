@@ -5,6 +5,11 @@ from scipy.interpolate import interp1d
 
 
 class DensityModule:
+    """
+    Модуль для работы с данными плотности субстанций на основе эмпирических данных.
+    Позволяет рассчитывать плотность субстанции по температуре с использованием интерполяции по данным из файлов.
+    """
+
     def __init__(self, base_path):
         """Инициализация модуля с указанием пути к папке с данными."""
         self.base_path = base_path
@@ -24,16 +29,16 @@ class DensityModule:
             raise FileNotFoundError(f"No density data available for {substance_name}")
 
     def get_density(self, substance_name, temperature):
-        """Получение плотности по заданной температуре с использованием интерполяции."""
+        """Получение плотности по заданной температуре с использованием интерполяции эмпирических данных."""
         if substance_name not in self.density_data:
             self.load_density_data(substance_name)
         return self.density_data[substance_name](temperature)
 
 
-# Пример использования
 density_module = DensityModule('cortool/data/')
-try:
-    density_ethanol = density_module.get_density('ethanol', 300)
-    print(f"Density of Ethanol at 300K: {density_ethanol}")
-except FileNotFoundError as e:
-    print(e)
+# Пример использования
+# try:
+#     density_ethanol = density_module.get_density('ethanol', 300)
+#     print(f"Density of Ethanol at 300K: {density_ethanol}")
+# except FileNotFoundError as e:
+#     print(e)

@@ -6,11 +6,15 @@ from repository.density_repo import density_module
 
 
 class Substance(ABC):
+    """
+    Абстрактный класс, описывающий химическое вещество.
+    Описывает химические свойства вещества, такие как молярная масса и удельная теплоёмкость и т.д.
+    """
 
     def __init__(self, name, molar_mass, specific_heat_capacity):
-        self.name = name
+        self.name = name  # Название вещества
         self.molar_mass = molar_mass  # Молярная масса вещества в г/моль
-        self.specific_heat_capacity = specific_heat_capacity  # Дж/(кг·К)
+        self.specific_heat_capacity = specific_heat_capacity  # удельная теплоёмкость Дж/(кг·К)
 
     @abstractmethod
     def get_viscosity(self, temperature: float) -> float:
@@ -54,6 +58,10 @@ class Nitrogen(Substance):
 
 
 def create_substance_dictionary():
+    """
+    Функция создания словаря, содержащего все классы веществ, унаследованные от Substance.
+    Ключи словаря - названия веществ, значения - объекты классов веществ.
+    """
     substance_dict = {}
     for subclass in Substance.__subclasses__():
         instance = subclass()
