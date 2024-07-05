@@ -11,7 +11,8 @@ class Substance(ABC):
     Описывает химические свойства вещества, такие как молярная масса и удельная теплоёмкость и т.д.
     """
 
-    def __init__(self, name, molar_mass, specific_heat_capacity):
+    def __init__(self, thermopack_id, name, molar_mass, specific_heat_capacity):
+        self.thermopack_id = thermopack_id  # Идентификатор флюида в базе Thermopack
         self.name = name  # Название вещества
         self.molar_mass = molar_mass  # Молярная масса вещества в г/моль
         self.specific_heat_capacity = specific_heat_capacity  # удельная теплоёмкость Дж/(кг·К)
@@ -29,7 +30,7 @@ class Substance(ABC):
 
 class Ethanol(Substance):
     def __init__(self):
-        super().__init__(name="ethanol", molar_mass=46.07, specific_heat_capacity=2470)
+        super().__init__("ETOH", "ethanol", 46.07, 2470)
 
     def get_viscosity(self, temperature: float) -> float:
         A = 0.00201 * 1e-6
@@ -44,7 +45,7 @@ class Ethanol(Substance):
 
 class Nitrogen(Substance):
     def __init__(self):
-        super().__init__(name="nitrogen", molar_mass=28.02, specific_heat_capacity=1040)
+        super().__init__("N2", "nitrogen", 28.02, 1040)
 
     def get_viscosity(self, temperature: float) -> float:
         VISCOSITY_INIT = 1.7e-5

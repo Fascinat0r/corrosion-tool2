@@ -27,6 +27,7 @@ class PipeSection:
             current_segment_length = min(segment_length, remaining_length)
             # Создаем сегмент с выбранной длиной
             segment = Segment(prop=self.prop, length=current_segment_length, components=current_components.copy())
+            segment.simulate()
             self.segments.append(segment)
 
             # Обновляем компоненты для следующего сегмента на основе выхода из текущего

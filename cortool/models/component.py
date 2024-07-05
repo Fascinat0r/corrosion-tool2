@@ -22,6 +22,7 @@ class Component:
     fraction: float  # Доля компонента в потоке
     phase: Phase  # Агрегатное состояние компонента
     velocity: float  # Скорость компонента в потоке
+    density: float  # Плотность компонента
 
     def __init__(self, substance_name: str, temperature: float, pressure: float, velocity: float, fraction: float,
                  phase: Phase):
@@ -31,11 +32,11 @@ class Component:
         self.fraction = fraction
         self.phase = phase
         self.velocity = velocity
+        self.density = self.get_density()
 
-    @property
-    def density(self) -> float:
+    def get_density(self) -> float:
         """
-        Вычисляет плотность компонента потока.
+        Вычисляет плотность компонента потока на основе температуре.
         """
         return self.substance.get_density(self.temperature, self.pressure)
 

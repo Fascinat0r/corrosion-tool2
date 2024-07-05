@@ -212,3 +212,50 @@ class Segment:
                 self.temperature - self.prop.ambient_temperature)  # Тепловой поток
         delta_temperature = q / (total_mass_flow * total_heat_capacity)  # Изменение температуры
         return delta_temperature
+
+    def simulate(self):
+        """
+        Симулирует поток через сегмент, используя ThermoPack для расчета фазового равновесия и других свойств.
+        """
+        # Пример использования ThermoPack для инициализации уравнения состояния (EoS)
+        from thermopack.cubic import SoaveRedlichKwong
+        component_names = ','.join([comp.substance.thermopack_id for comp in self.components])
+        eos = SoaveRedlichKwong(component_names)  # TODO: Обработать ошибку ненахода флюидов в базе термопака
+
+        # Состав компонентов в мольных долях
+        x = [comp.fraction for comp in self.components]
+
+        # Температура и давление в начале сегмента
+        T_initial = self.temperature
+        p_initial = self.pressure
+
+        # Выполнение TP-флэш расчёта
+        x, y, vap_frac, liq_frac, _ = eos.two_phase_tpflash(T_initial, p_initial, x)
+
+        # Обновление состояния компонентов на основе флэш-расчёта
+        for idx, comp in enumerate(self.components):
+            if comp.phase == Phase.LIQUID:
+                comp.fraction = x[idx]
+            elif comp.phase == Phase.GAS:
+                comp.fraction = y[idx]
+
+            # Расчет специфического объема для каждой фазы
+            if vap_frac > 0 and comp.phase == Phase.GAS:
+                v_g, = eos.specific_volume(T_initial, p_initial, y, eos.VAPPH)
+                comp.density = comp.substance.molar_mass / v_g
+
+            if liq_frac > 0 and comp.phase == Phase.LIQUID:
+                v_l, = eos.specific_volume(T_initial, p_initial, x, eos.LIQPH)
+                comp.density = comp.substance.molar_mass / v_l
+
+        # Расчет потерь давления и температуры
+        delta_T = self.temperature_loss()
+        delta_P = self.pressure_loss()
+
+        # Обновление температуры и давления в конце сегмента
+        new_temperature = T_initial - delta_T
+        new_pressure = p_initial - delta_P
+
+        for comp in self.components:
+            comp.temperature = new_temperature
+            comp.pressure = new_pressure
