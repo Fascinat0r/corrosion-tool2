@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pandas as pd
 
 from cortool.models.component import Component
@@ -55,14 +56,44 @@ class Pipeline:
     def simulate(self):
         """Симулирует поток через всю систему трубопровода."""
         current_components = self.initial_components
-        for section in self.sections:
-            # Симулируем поток в каждой секции, деля ее на сегменты
-            current_components = section.simulate_flow(current_components,
-                                                       segment_length=1000)  # Предполагаемая длина сегмента
-            # Вывод результатов каждой секции
-            print(f"Results after section with diameter {section.prop.diameter}:")
+        for idx, section in enumerate(self.sections):
+            # Симулируем поток в текущей секции
+            current_components = section.simulate_flow(current_components, segment_length=1000)
+            # Производим адаптацию параметров потока при переходе к следующей секции
+            if idx < len(self.sections) - 1:
+                current_components = self.adapt_flow(idx, current_components)
+
             for comp in current_components:
                 print(f"{comp.substance.name} - Density: {comp.density}, Viscosity: {comp.viscosity}")
+
+    def adapt_flow(self, idx, components):
+        """Адаптирует параметры потока при изменении диаметра трубы."""
+        current_section = self.sections[idx]
+        next_section = self.sections[idx + 1]
+        # Рассчитываем площади поперечных сечений для текущей и следующей секции
+        A1 = np.pi * (current_section.prop.diameter / 2) ** 2
+        A2 = np.pi * (next_section.prop.diameter / 2) ** 2
+
+        # Уравнение неразрывности для скорости
+        v1 = np.mean([comp.velocity for comp in components])
+        v2 = v1 * (A1 / A2)
+
+        # Обновляем скорость компонентов для следующей секции
+        for comp in components:
+            comp.velocity = v2
+
+        # Расчет средней плотности смеси #T
+        total_density = sum(comp.density * comp.composition for comp in components)
+
+        # Уравнение Бернулли для давления
+        p1 = np.mean([comp.pressure for comp in components])
+        p2 = p1 + 0.5 * total_density * (v1 ** 2 - v2 ** 2)
+
+        # Обновляем давление компонентов для следующей секции
+        for comp in components:
+            comp.pressure = p2
+
+        return components
 
     def save_sections_data_to_csv(self, file_path):
         """
