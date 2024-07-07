@@ -1,14 +1,4 @@
-from enum import Enum, auto
-
 from cortool.models.substance import Substance, create_substance
-
-
-class Phase(Enum):
-    """
-    Enum класс для определения агрегатного состояния компонента потока.
-    """
-    LIQUID = auto()
-    GAS = auto()
 
 
 class Component:
@@ -19,26 +9,26 @@ class Component:
     substance: Substance  # Химический элемент
     temperature: float  # Температура
     pressure: float  # Давление
-    fraction: float  # Доля компонента в потоке
-    phase: Phase  # Агрегатное состояние компонента
+    composition: float  # Доля компонента в потоке  в мольных долях
     velocity: float  # Скорость компонента в потоке
-    density: float  # Плотность компонента
+    fractions: (float, float)  # Доля жидкой и газовой фазы в компоненте (жидкая, газовая)
+    densities: (float, float)  # Плотности жидкой и газовой фазы в компоненте (жидкая, газовая)
 
-    def __init__(self, substance_name: str, temperature: float, pressure: float, velocity: float, fraction: float,
-                 phase: Phase):
+    def __init__(self, substance_name: str, temperature: float, pressure: float, velocity: float, composition: float):
         self.substance = create_substance(substance_name)
         self.temperature = temperature
         self.pressure = pressure
-        self.fraction = fraction
-        self.phase = phase
+        self.composition = composition
         self.velocity = velocity
-        self.density = self.get_density()
+        self.fractions = (None, None)
+        self.densities = (None, None)
 
-    def get_density(self) -> float:
+    @property
+    def density(self) -> float:
         """
-        Вычисляет плотность компонента потока на основе температуре.
+        Вычисляет плотность компонента потока на основе двух фаз (жидкой и газовой).
         """
-        return self.substance.get_density(self.temperature, self.pressure)
+        return sum(density * fraction for density, fraction in zip(self.densities, self.fractions))
 
     @property
     def viscosity(self) -> float:

@@ -28,11 +28,11 @@ class DensityModule:
         else:
             raise FileNotFoundError(f"No density data available for {substance_name}")
 
-    def get_density(self, substance_name, temperature):
+    def get_density(self, substance_name, temperature) -> float:
         """Получение плотности по заданной температуре с использованием интерполяции эмпирических данных."""
         if substance_name not in self.density_data:
             self.load_density_data(substance_name)
-        return self.density_data[substance_name](temperature)
+        return float(self.density_data[substance_name](temperature))
 
 
 density_module = DensityModule('cortool/data/')

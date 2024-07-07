@@ -5,16 +5,14 @@
       "temperature": 311,
       "pressure": 16250000,
       "velocity": 5.0,
-      "fraction": 0.8,
-      "phase": "liquid"
+      "composition": 0.8
     },
     {
       "name": "nitrogen",
       "temperature": 311,
       "pressure": 16250000,
       "velocity": 5.0,
-      "fraction": 0.2,
-      "phase": "gas"
+      "composition": 0.2
     }
   ]
 }

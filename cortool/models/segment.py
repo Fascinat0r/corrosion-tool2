@@ -3,7 +3,9 @@ from enum import Enum, auto
 from functools import cached_property
 from typing import List
 
-from cortool.models.component import Component, Phase
+from thermopack.cubic import SoaveRedlichKwong
+
+from cortool.models.component import Component
 
 
 class FlowMode(Enum):
@@ -36,15 +38,12 @@ class Segment:
     Класс, представляющий один сегмент от цельной трубы.
     Используется для моделирования потока внутри трубы.
     """
-    prop: PipeProperties  # Свойства трубы, сегментом которого является объект
-    length: float  # Длина сегмента
-    components: List[Component] = None  # Список компонентов в потоке
 
     def __init__(self, prop: PipeProperties, length: float, components: List[Component] = None):
-        self.prop = prop
-        self.length = length
+        self.prop = prop  # Свойства трубы, сегментом которого является объект
+        self.length = length  # Длина сегмента
         if components is None:
-            self.components = []
+            self.components = []  # Список компонентов в потоке
         else:
             self.components = components
 
@@ -80,7 +79,7 @@ class Segment:
         """
         Вычисляет общую плотность потока на основе плотности каждого компонента.
         """
-        return sum(comp.density * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+        return sum(comp.density * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def overall_viscosity(self) -> float:
@@ -88,7 +87,7 @@ class Segment:
         """
         Вычисляет общую вязкость потока на основе вязкости каждого компонента.
         """
-        return sum(comp.viscosity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+        return sum(comp.viscosity * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def velocity(self) -> float:
@@ -96,21 +95,21 @@ class Segment:
         """
         Вычисляет общую скорость потока на основе скорости каждого компонента.
         """
-        return sum(comp.velocity * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+        return sum(comp.velocity * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def temperature(self) -> float:
         """
         Вычисляет общую температуру потока на основе температуры каждого компонента.
         """
-        return sum(comp.temperature * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+        return sum(comp.temperature * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @cached_property
     def pressure(self) -> float:
         """
         Вычисляет общее давление потока на основе давления каждого компонента.
         """
-        return sum(comp.pressure * comp.fraction for comp in self.components) if self.number_of_fluids > 0 else 0
+        return sum(comp.pressure * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
     def reynolds(self) -> float:
@@ -125,16 +124,27 @@ class Segment:
         """
         Вычисляет параметр Локхарта-Мартинелли для определения режима потока.
         """
-        liquid = next((c for c in self.components if c.phase == Phase.LIQUID), None)
-        gas = next((c for c in self.components if c.phase == Phase.GAS), None)
+        liquid_density = sum(comp.densities[0] * comp.fractions[0] for comp in self.components if
+                             comp.densities[0] is not None and comp.fractions[0] is not None)
+        gas_density = sum(comp.densities[1] * comp.fractions[1] for comp in self.components if
+                          comp.densities[1] is not None and comp.fractions[1] is not None)
+        liquid_viscosity = sum(
+            comp.substance.get_viscosity(self.temperature) * comp.fractions[0] for comp in self.components if
+            comp.fractions[0] is not None)
+        gas_viscosity = sum(
+            comp.substance.get_viscosity(self.temperature) * comp.fractions[1] for comp in self.components if
+            comp.fractions[1] is not None)
 
-        if not liquid or not gas:
-            return None  # Не найдены компоненты жидкости или газа
+        if not liquid_density or not gas_density or liquid_density <= 0 or gas_density <= 0:
+            return None  # Если плотность не определена или нулевая
 
-        # Используя свойства жидкости и газа для вычисления xtt
-        xtt = ((1.096 / liquid.density) ** 0.5) * \
-              ((liquid.density / gas.density) ** 0.25) * \
-              ((gas.viscosity / liquid.viscosity) ** 0.1) * \
+        if self.velocity <= 0 or self.prop.diameter <= 0:
+            raise ValueError("Скорость потока и диаметр трубы должны быть больше нуля.")
+
+        # Используя усреднённые свойства жидкости и газа для вычисления xtt
+        xtt = ((1.096 / liquid_density) ** 0.5) * \
+              ((liquid_density / gas_density) ** 0.25) * \
+              ((gas_viscosity / liquid_viscosity) ** 0.1) * \
               ((self.velocity / self.prop.diameter) ** 0.5)
         return xtt
 
@@ -202,9 +212,9 @@ class Segment:
         Расчет потери температуры для сегмента трубы.
         """
         # Расчет общего массового потока и теплоемкости
-        total_mass_flow = sum(comp.density * comp.fraction for comp in self.components)  # Общий массовый поток
+        total_mass_flow = sum(comp.density * comp.composition for comp in self.components)  # Общий массовый поток
         total_heat_capacity = sum(
-            comp.substance.specific_heat_capacity * comp.density * comp.fraction for comp in self.components)
+            comp.substance.specific_heat_capacity * comp.density * comp.composition for comp in self.components)
         if total_mass_flow == 0 or total_heat_capacity == 0:
             return 0
         # Расчет теплового потока и изменения температуры
@@ -218,44 +228,28 @@ class Segment:
         Симулирует поток через сегмент, используя ThermoPack для расчета фазового равновесия и других свойств.
         """
         # Пример использования ThermoPack для инициализации уравнения состояния (EoS)
-        from thermopack.cubic import SoaveRedlichKwong
         component_names = ','.join([comp.substance.thermopack_id for comp in self.components])
         eos = SoaveRedlichKwong(component_names)  # TODO: Обработать ошибку ненахода флюидов в базе термопака
 
         # Состав компонентов в мольных долях
-        x = [comp.fraction for comp in self.components]
+        x = [comp.composition for comp in self.components]
 
         # Температура и давление в начале сегмента
         T_initial = self.temperature
         p_initial = self.pressure
 
         # Выполнение TP-флэш расчёта
-        x, y, vap_frac, liq_frac, _ = eos.two_phase_tpflash(T_initial, p_initial, x)
+        flsh = eos.two_phase_tpflash(T_initial, p_initial, x)
+
+        if flsh.T != T_initial:
+            raise Warning("Температура после флэш-расчёта не совпадает с начальной")
 
         # Обновление состояния компонентов на основе флэш-расчёта
         for idx, comp in enumerate(self.components):
-            if comp.phase == Phase.LIQUID:
-                comp.fraction = x[idx]
-            elif comp.phase == Phase.GAS:
-                comp.fraction = y[idx]
+            # Установка фракций для жидкости и газа
+            comp.fractions = (flsh.x[idx], flsh.y[idx])
 
-            # Расчет специфического объема для каждой фазы
-            if vap_frac > 0 and comp.phase == Phase.GAS:
-                v_g, = eos.specific_volume(T_initial, p_initial, y, eos.VAPPH)
-                comp.density = comp.substance.molar_mass / v_g
-
-            if liq_frac > 0 and comp.phase == Phase.LIQUID:
-                v_l, = eos.specific_volume(T_initial, p_initial, x, eos.LIQPH)
-                comp.density = comp.substance.molar_mass / v_l
-
-        # Расчет потерь давления и температуры
-        delta_T = self.temperature_loss()
-        delta_P = self.pressure_loss()
-
-        # Обновление температуры и давления в конце сегмента
-        new_temperature = T_initial - delta_T
-        new_pressure = p_initial - delta_P
-
-        for comp in self.components:
-            comp.temperature = new_temperature
-            comp.pressure = new_pressure
+            # Расчет специфического объема и плотности для каждой фазы #TODO: Проверить правильность расчета
+            v_l, = eos.specific_volume(T_initial, p_initial, flsh.x, eos.LIQPH)
+            v_g, = eos.specific_volume(T_initial, p_initial, flsh.y, eos.VAPPH)
+            comp.densities = (comp.substance.molar_mass / v_l, comp.substance.molar_mass / v_g)
