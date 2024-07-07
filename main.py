@@ -1,5 +1,5 @@
 from models.pipeline import Pipeline
-from services.visualization import plot_pipeline_data
+from services.visualization import plot_pipeline_data, plot_all_columns
 
 
 def main():
@@ -8,6 +8,7 @@ def main():
     out_path = 'cortool/data/output.csv'
     pipeline.save_sections_data_to_csv(out_path)
     plot_pipeline_data(out_path)
+    plot_all_columns(out_path)
 
 
 if __name__ == "__main__":
