@@ -49,8 +49,7 @@ class Pipeline:
                                       comp['temperature'],
                                       comp['pressure'],
                                       comp['velocity'],
-                                      comp['fraction'],
-                                      comp['phase'])
+                                      comp['composition'])
                 self.initial_components.append(component)
 
     def simulate(self):
@@ -80,6 +79,7 @@ class Pipeline:
                     "Roughness": section.prop.roughness,
                     "Angle": section.prop.angle,
                     "Heat Transfer Coefficient": section.prop.heat_transfer_coefficient,
+                    "Velocity": segment.velocity,
                     "Ambient Temperature": section.prop.ambient_temperature,
                     "Average Pressure": segment.pressure,
                     "Average Temperature": segment.temperature,
@@ -87,6 +87,7 @@ class Pipeline:
                     "Average Viscosity": segment.overall_viscosity,
                     "Flow Mode": segment.flow_mode.name if segment.flow_mode else "Undefined",
                     "Reynolds Number": segment.reynolds,
+                    "xtt": segment.xtt,
                     "Friction Factor": segment.friction_factor if segment.friction_factor else "N/A",
                     "Pressure Loss": segment.pressure_loss(),
                     "Temperature Loss": segment.temperature_loss()
