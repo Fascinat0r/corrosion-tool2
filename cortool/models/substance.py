@@ -14,7 +14,7 @@ class Substance(ABC):
     def __init__(self, thermopack_id, name, molar_mass, specific_heat_capacity):
         self.thermopack_id = thermopack_id  # Идентификатор флюида в базе Thermopack
         self.name = name  # Название вещества
-        self.molar_mass = molar_mass  # Молярная масса вещества в г/моль
+        self.molar_mass = molar_mass  # Молярная масса вещества в кг/моль
         self.specific_heat_capacity = specific_heat_capacity  # удельная теплоёмкость Дж/(кг·К)
 
     @abstractmethod
@@ -30,7 +30,7 @@ class Substance(ABC):
 
 class Ethanol(Substance):
     def __init__(self):
-        super().__init__("ETOH", "ethanol", 46.07, 2470)
+        super().__init__("ETOH", "ethanol", 0.04607, 2470)
 
     def get_viscosity(self, temperature: float) -> float:
         A = 0.00201 * 1e-6
@@ -45,7 +45,7 @@ class Ethanol(Substance):
 
 class Nitrogen(Substance):
     def __init__(self):
-        super().__init__("N2", "nitrogen", 28.02, 1040)
+        super().__init__("N2", "nitrogen", 0.02802, 1040)
 
     def get_viscosity(self, temperature: float) -> float:
         VISCOSITY_INIT = 1.7e-5
