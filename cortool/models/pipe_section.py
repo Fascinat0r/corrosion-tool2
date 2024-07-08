@@ -26,7 +26,8 @@ class PipeSection:
             # Выбираем длину текущего сегмента - минимум из длины сегмента и оставшейся длины секции
             current_segment_length = min(segment_length, remaining_length)
             # Создаем сегмент с выбранной длиной
-            segment = Segment(prop=self.prop, length=current_segment_length, components=current_components.copy())
+            segment = Segment(prop=self.prop, length=current_segment_length,
+                              components=[comp.copy() for comp in current_components])
             segment.simulate()
             self.segments.append(segment)
 

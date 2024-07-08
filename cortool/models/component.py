@@ -23,6 +23,15 @@ class Component:
         self.fractions = (None, None)
         self.densities = (None, None)
 
+    def copy(self):
+        """
+        Создает копию компонента.
+        """
+        comp = Component(self.substance.name, self.temperature, self.pressure, self.velocity, self.composition)
+        comp.fractions = self.fractions
+        comp.densities = self.densities
+        return comp
+
     @property
     def density(self) -> float:
         """

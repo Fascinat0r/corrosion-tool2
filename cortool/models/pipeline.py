@@ -13,12 +13,14 @@ class Pipeline:
     Это основной класс для симуляции потока в трубопроводе.
     """
 
+    sections: list[PipeSection]  # Список секций трубопровода
+    initial_components: list[Component]  # Список начальных компонентов потока
+
     def __init__(self, sections_config_path: str, components_config_path: str):
         # Список секций трубопровода. Предполагаем о они идут последовательно, без разветвлений
         self.sections = []  # TODO: Реализовать ветвление трубопровода
         self.load_sections(sections_config_path)
-        # Начальные компоненты потока
-        self.initial_components = []  # List[Component] - список начальных компонентов потока
+        self.initial_components = []
         self.load_components(components_config_path)
 
     def load_sections(self, filepath: str):
