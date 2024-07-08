@@ -227,7 +227,7 @@ class Segment:
         """
         Симулирует поток через сегмент, используя ThermoPack для расчета фазового равновесия и других свойств.
         """
-        # Пример использования ThermoPack для инициализации уравнения состояния (EoS)
+        # инициализация уравнения состояния (EoS)
         component_names = ','.join([comp.substance.thermopack_id for comp in self.components])
         eos = SoaveRedlichKwong(component_names)  # TODO: Обработать ошибку ненахода флюидов в базе термопака
 

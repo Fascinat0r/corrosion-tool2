@@ -18,7 +18,7 @@ class Pipeline:
         self.sections = []  # TODO: Реализовать ветвление трубопровода
         self.load_sections(sections_config_path)
         # Начальные компоненты потока
-        self.initial_components = []
+        self.initial_components = []  # List[Component] - список начальных компонентов потока
         self.load_components(components_config_path)
 
     def load_sections(self, filepath: str):
