@@ -242,7 +242,7 @@ class Segment:
         flsh = eos.two_phase_tpflash(T_initial, p_initial, x)
 
         if flsh.T != T_initial:
-            raise Warning("Температура после флэш-расчёта не совпадает с начальной")
+            raise Warning(f"Температура после флэш-расчёта не совпадает с начальной: {flsh.T} != {T_initial}")
 
         # Обновление состояния компонентов на основе флэш-расчёта
         for idx, comp in enumerate(self.components):

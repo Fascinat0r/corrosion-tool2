@@ -5,7 +5,7 @@
       "length_m": 16500,
       "roughness_m": 0.000015,
       "angle_deg": 0,
-      "heat_transfer_coefficient": 50,
+      "heat_transfer_coefficient": 0,
       "ambient_temperature": 280
     },
     {
