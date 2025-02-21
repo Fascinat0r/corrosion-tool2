@@ -3,8 +3,8 @@ import json
 import numpy as np
 import pandas as pd
 
-from cortool.models.component import Component
-from cortool.models.pipe_section import PipeSection, PipeProperties
+from app.models.component import Component
+from app.models.pipe_section import PipeSection, PipeProperties
 
 
 class Pipeline:
@@ -58,15 +58,18 @@ class Pipeline:
     def simulate(self):
         """Симулирует поток через всю систему трубопровода."""
         current_components = self.initial_components
-        for idx, section in enumerate(self.sections):
-            # Симулируем поток в текущей секции
-            current_components = section.simulate_flow(current_components, segment_length=1000)
-            # Производим адаптацию параметров потока при переходе к следующей секции
-            if idx < len(self.sections) - 1:
-                current_components = self.adapt_flow(idx, current_components)
+        try:
+            for idx, section in enumerate(self.sections):
+                # Симулируем поток в текущей секции
+                current_components = section.simulate_flow(current_components, segment_length=1000)
+                # Производим адаптацию параметров потока при переходе к следующей секции
+                if idx < len(self.sections) - 1:
+                    current_components = self.adapt_flow(idx, current_components)
 
-            for comp in current_components:
-                print(f"{comp.substance.name} - Density: {comp.density}, Viscosity: {comp.viscosity}")
+                for comp in current_components:
+                    print(f"{comp.substance.name} - Density: {comp.density}, Viscosity: {comp.viscosity}")
+        except ValueError as e:
+            raise ValueError(f"Error while simulating flow in the pipeline:\n {e}")
 
     def adapt_flow(self, idx, components):
         """Адаптирует параметры потока при изменении диаметра трубы."""

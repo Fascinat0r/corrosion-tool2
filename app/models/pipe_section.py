@@ -1,7 +1,7 @@
 from typing import List
 
-from cortool.models.component import Component
-from cortool.models.segment import Segment, PipeProperties
+from app.models.component import Component
+from app.models.segment import Segment, PipeProperties
 
 
 class PipeSection:
@@ -22,18 +22,21 @@ class PipeSection:
         remaining_length = self.prop.length
         current_components = initial_components
         # Пока не закончится длина секции, создаем сегменты
-        while remaining_length > 0:
-            # Выбираем длину текущего сегмента - минимум из длины сегмента и оставшейся длины секции
-            current_segment_length = min(segment_length, remaining_length)
-            # Создаем сегмент с выбранной длиной
-            segment = Segment(prop=self.prop, length=current_segment_length,
-                              components=[comp.copy() for comp in current_components])
-            segment.simulate()
-            self.segments.append(segment)
+        try:
+            while remaining_length > 0:
+                # Выбираем длину текущего сегмента - минимум из длины сегмента и оставшейся длины секции
+                current_segment_length = min(segment_length, remaining_length)
+                # Создаем сегмент с выбранной длиной
+                segment = Segment(prop=self.prop, length=current_segment_length,
+                                  components=current_components)
+                segment.simulate()
+                self.segments.append(segment)
 
-            # Обновляем компоненты для следующего сегмента на основе выхода из текущего
-            current_components = segment.get_output_components()
-            remaining_length -= current_segment_length
+                # Обновляем компоненты для следующего сегмента на основе выхода из текущего
+                current_components = segment.get_output_components()
+                remaining_length -= current_segment_length
+        except ValueError as e:
+            raise ValueError(f"Error while simulating flow in the section:\n {e}")
         return current_components
 
     def calculate_overall_properties(self):

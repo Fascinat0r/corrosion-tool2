@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import cached_property
@@ -5,7 +6,7 @@ from typing import List
 
 from thermopack.cubic import SoaveRedlichKwong
 
-from cortool.models.component import Component
+from app.models.component import Component
 
 
 class FlowMode(Enum):
@@ -57,15 +58,23 @@ class Segment:
         delta_P = self.pressure_loss()
         new_temperature = self.temperature - delta_T
         new_pressure = self.pressure - delta_P
+        if math.isnan(new_temperature) or math.isnan(new_pressure):
+            raise ValueError(
+                "Температура или давление не определены для одного или нескольких компонентов. Ошибка вычислений.")
 
+        if new_pressure < 0:
+            raise ValueError(f"Давление не может быть меньше нуля. Ошибка вычислений. p = {new_pressure}")
         # Обновление состояния каждого компонента
+        new_components = []
         for component in self.components:
-            component.temperature = new_temperature
-            component.pressure = new_pressure
+            comp = component.copy()
+            comp.temperature = new_temperature
+            comp.pressure = new_pressure
             # Fraction не меняется
             # Phase не меняется
             # Velocity не меняется
-        return self.components
+            new_components.append(comp)
+        return new_components
 
     @property
     def number_of_fluids(self) -> int:
@@ -89,7 +98,7 @@ class Segment:
         """
         return sum(comp.viscosity * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
-    @cached_property
+    @property
     def velocity(self) -> float:
         # TODO: Пример расчета общей вязкости, требует более сложной логики в зависимости от условий
         """
@@ -97,18 +106,25 @@ class Segment:
         """
         return sum(comp.velocity * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
-    @cached_property
+    @property
     def temperature(self) -> float:
         """
         Вычисляет общую температуру потока на основе температуры каждого компонента.
         """
-        return sum(comp.temperature * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
+
+        temp = float(
+            sum(comp.temperature * comp.composition for comp in self.components)) if self.number_of_fluids > 0 else 0
+        if math.isnan(temp):
+            raise ValueError("Температура не определена для одного или нескольких компонентов.")
+        return temp
 
     @cached_property
     def pressure(self) -> float:
         """
         Вычисляет общее давление потока на основе давления каждого компонента.
         """
+        if any(comp.pressure is None for comp in self.components):
+            raise ValueError("Давление не определено для одного или нескольких компонентов.")
         return sum(comp.pressure * comp.composition for comp in self.components) if self.number_of_fluids > 0 else 0
 
     @property
@@ -200,12 +216,21 @@ class Segment:
         else:
             return 0.316 / (reynolds_number ** 0.25)
 
-    def pressure_loss(self) -> float:  # TODO: предоставить формулу
+    def pressure_loss(self) -> float:
         """
         Вычисляет потерю давления в сегменте на основе лямбда-коэффициента.
         """
-        xi = self.r_lambda * self.length / self.prop.diameter
-        return (xi * self.velocity ** 2) * 0.5 * self.overall_density
+        if self.velocity <= 0 or self.overall_density <= 0 or self.prop.diameter <= 0:
+            raise ValueError("Некорректные параметры для расчёта потерь давления.")
+
+        xi = self.r_lambda
+        if xi is None:
+            raise ValueError("Не удалось рассчитать коэффициент трения.")
+
+        pressure_drop = (xi * self.length / self.prop.diameter) * (self.velocity ** 2) * 0.5 * self.overall_density
+        if pressure_drop < 0:
+            raise ValueError("Рассчитанное значение потерь давления отрицательное.")
+        return pressure_drop
 
     def temperature_loss(self) -> float:
         """
@@ -237,7 +262,8 @@ class Segment:
         # Температура и давление в начале сегмента
         T_initial = self.temperature
         p_initial = self.pressure
-
+        if math.isnan(T_initial) or math.isnan(p_initial):
+            raise ValueError("Температура или давление не определены для одного или нескольких компонентов.")
         # Выполнение TP-флэш расчёта
         flsh = eos.two_phase_tpflash(T_initial, p_initial, x)
 

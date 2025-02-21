@@ -1,0 +1,18 @@
+{
+  "components": [
+    {
+      "name": "ethanol",
+      "temperature": 311,
+      "pressure": 162500000,
+      "velocity": 40.0,
+      "composition": 0.3
+    },
+    {
+      "name": "nitrogen",
+      "temperature": 311,
+      "pressure": 162500000,
+      "velocity": 40.0,
+      "composition": 0.7
+    }
+  ]
+}

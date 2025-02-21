@@ -1,7 +1,7 @@
 import math
 from abc import ABC, abstractmethod
 
-from cortool.constants import UNIVERSAL_GAS_CONSTANT
+from app.config.constants import UNIVERSAL_GAS_CONSTANT
 from repository.density_repo import density_module
 
 
@@ -26,6 +26,9 @@ class Substance(ABC):
     def get_density(self, temperature: float, pressure: float) -> float:
         """Метод для расчёта плотности в граммах на метр кубический"""
         pass
+
+    def __str__(self):
+        return f"{self.name} ({self.thermopack_id})"
 
 
 class Ethanol(Substance):

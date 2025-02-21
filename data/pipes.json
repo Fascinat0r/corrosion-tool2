@@ -1,7 +1,7 @@
 {
   "pipeline_sections": [
     {
-      "diameter_m": 0.386,
+      "diameter_m": 0.3,
       "length_m": 16500,
       "roughness_m": 0.000015,
       "angle_deg": 0,
@@ -9,7 +9,7 @@
       "ambient_temperature": 280
     },
     {
-      "diameter_m": 0.482,
+      "diameter_m": 0.3,
       "length_m": 56000,
       "roughness_m": 0.000015,
       "angle_deg": 0.5,
@@ -17,7 +17,7 @@
       "ambient_temperature": 290
     },
     {
-      "diameter_m": 0.386,
+      "diameter_m": 0.3,
       "length_m": 35000,
       "roughness_m": 0.000015,
       "angle_deg": 0.3,
