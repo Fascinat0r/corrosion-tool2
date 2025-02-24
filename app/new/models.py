@@ -39,25 +39,18 @@ class NodeType(Enum):
 
 @dataclass
 class PipelineNode:
-    """
-    Узел трубопроводной сети (бизнес-логика), не зависящий от networkx.
-    """
     id: str
     type: NodeType
     x: float = 0.0
     y: float = 0.0
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    data: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class PipelineEdge:
-    """
-    Труба (ребро) с физическими/дополнительными свойствами.
-    """
     source: str
     target: str
     length: float = 0.0
     diameter: float = 0.5
     roughness: float = 0.000015
-    # любые другие поля
     properties: Dict[str, Any] = field(default_factory=dict)

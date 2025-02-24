@@ -2,6 +2,9 @@
 
 import json
 import logging
+from typing import List
+
+from matplotlib import pyplot as plt
 
 from graph_adapter_interface import IGraphAdapter
 from models import PipelineNode, PipelineEdge, NodeType
@@ -11,53 +14,40 @@ logger = logging.getLogger("pipeline_logger")
 
 class PipelineRepository:
     """
-    Репозиторий для загрузки данных о трубопроводе из JSON и наполняет адаптер графа.
+    Репозиторий для загрузки данных о трубопроводе из JSON и наполнения адаптера.
     """
 
-    def __init__(self, adapter: IGraphAdapter, input_nodes: list = None, output_nodes: list = None):
+    def __init__(self, adapter: IGraphAdapter, input_nodes: List[str] = None, output_nodes: List[str] = None):
         self.adapter = adapter
-        self.output_nodes = input_nodes
-        self.input_nodes = output_nodes
+        self.input_nodes = input_nodes or []
+        self.output_nodes = output_nodes or []
 
-    def load_from_json(self, file_path: str):
-        """
-        Считывает JSON файл и добавляет в адаптер узлы/рёбра.
-        """
+    def load_from_json(self, file_path: str) -> None:
         logger.info(f"Читаем данные из файла {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-
         self.input_nodes = data.get("input_nodes", [])
         self.output_nodes = data.get("output_nodes", [])
-
-        nodes_data = data.get("nodes", [])
-        edges_data = data.get("edges", [])
-
-        # Сначала создаём узлы
-        for ninfo in nodes_data:
+        for ninfo in data.get("nodes", []):
             node_id = ninfo["id"]
-            node_dict = ninfo.get("data", {})
-            x = float(node_dict.get("x", 0.0))
-            y = float(node_dict.get("y", 0.0))
-            # Определяем тип: если в input_nodes => INPUT, в output_nodes => OUTPUT
+            node_data = ninfo.get("data", {})
+            x = float(node_data.get("x", 0.0))
+            y = float(node_data.get("y", 0.0))
             if node_id in self.input_nodes:
                 tp = NodeType.INPUT
             elif node_id in self.output_nodes:
                 tp = NodeType.OUTPUT
             else:
                 tp = NodeType.UNKNOWN
-            node = PipelineNode(id=node_id, type=tp, x=x, y=y, attributes=node_dict)
+            node = PipelineNode(id=node_id, type=tp, x=x, y=y, data=node_data)
             self.adapter.add_node(node)
-
-        # Создаём рёбра
-        for einfo in edges_data:
+        for einfo in data.get("edges", []):
             src = einfo["source"]
             tgt = einfo["target"]
             props = einfo.get("properties", {})
             length = float(props.get("length", 0.0))
             diameter = float(props.get("diameter", 0.5))
             roughness = float(props.get("roughness_m", 0.000015))
-
             edge = PipelineEdge(
                 source=src,
                 target=tgt,
@@ -67,58 +57,64 @@ class PipelineRepository:
                 properties=props
             )
             self.adapter.add_edge(edge)
+        logger.info("Данные успешно загружены в адаптер.")
 
-        logger.info("Данные загружены в адаптер.")
-
-    def get_digraph_variants(self):
-        """
-        Подготовить граф: схлопнуть 'промежуточные' узлы, зафиксировать рёбра и т.д.
-        """
+    def get_digraph_variants(self) -> List[IGraphAdapter]:
         logger.info("Запуск упрощения графа...")
         contraction_map = self.adapter.simplify_graph(self.input_nodes, self.output_nodes)
-        logger.info("Устанавливаем направления рёбер, выходящих из входов/входящих в выходы...")
+        logger.info("Фиксация направлений для входных/выходных рёбер...")
         fixed_edges = self.adapter.force_direction_for_io_edges(self.input_nodes, self.output_nodes)
-        logger.info("Начинаем перебор всех возможных ориентаций (кроме зафиксированных)...")
+        logger.info("Перебор вариантов ориентаций для свободных рёбер...")
         variants = self.adapter.enumerate_orientations(self.input_nodes, self.output_nodes, fixed_edges)
-        logger.info(f"Количество итоговых вариантов: {len(variants)}")
-        logger.info("Восстановление исходных графов...")
+        logger.info(f"Найдено {len(variants)} вариантов.")
+        logger.info("Восстановление схлопнутых узлов в каждом варианте...")
         for variant in variants:
             variant.expand_contraction_map(contraction_map)
         return variants
 
-    def draw_graph(self, title: str = "Pipeline graph"):
-        self.adapter.visualize(title)
-
-    def define_node_types(self):
+    def define_node_types(self) -> None:
         """
-        Определить типы узлов в зависимости от количества входящих и исходящих рёбер.
-        Входные узлы - если in_degree = 0, out_degree > 0
-        Выходные узлы - если in_degree > 0, out_degree = 0
-        Потребители - если in_degree = 1, out_degree = 1
-        Ветвление - если in_degree = 1, out_degree > 1
-        Водораздел - если in_degree > 1, out_degree > 1
+        Определяет типы узлов по количеству входящих и исходящих рёбер.
         """
         for node in self.adapter.get_nodes():
-            in_degree = self.adapter.in_degree(node.id)
-            out_degree = self.adapter.out_degree(node.id)
-            if in_degree == 0 and out_degree > 0:
+            indeg = self.adapter.in_degree(node.id)
+            outdeg = self.adapter.out_degree(node.id)
+            if indeg == 0 and outdeg > 0:
                 node.type = NodeType.INPUT
-            elif in_degree > 0 and out_degree == 0:
+            elif indeg > 0 and outdeg == 0:
                 node.type = NodeType.OUTPUT
-            elif in_degree == 1 and out_degree == 1:
+            elif indeg == 1 and outdeg == 1:
                 node.type = NodeType.CONSUMER
-            elif in_degree == 1 and out_degree > 1:
+            elif indeg == 1 and outdeg > 1:
                 node.type = NodeType.BRANCH
-            elif in_degree > 1 and out_degree >= 1:
+            elif indeg > 1 and outdeg >= 1:
                 node.type = NodeType.DIVIDER
             else:
                 node.type = NodeType.UNKNOWN
             self.adapter.update_node(node)
         logger.info("Типы узлов определены.")
 
-    # расчёт СЛАУ
-    def solve_system(self):
+    def solve_system(self) -> List[float]:
         """
-        Решить систему уравнений для трубопровода.
+        Запускает однократный проход расчёта (одну итерацию) для варианта графа.
+        Рассчитывает Q, R, dP, dPfix и выводит итоговые значения.
+        Отбрасывает варианты, где обнаружены отрицательные внутренние Q.
         """
-        self.adapter.build_divider_chains()
+        from new.slau_service import SLASolverService
+        solver = SLASolverService(self.adapter.digraph)
+        Q_values = solver.solve_iteratively(max_iter=1, tolerance=1e-3)
+        # Если в найденном варианте отрицательные Q, можно выбросить этот вариант (обработка на уровне репозитория)
+        valid = True
+        for q in Q_values:
+            if q < 0:
+                valid = False
+                break
+        if valid:
+            logger.info("Вариант принят, отрицательных Q не обнаружено.")
+        else:
+            logger.info("Вариант отклонен, обнаружены отрицательные Q.")
+
+        return Q_values
+
+    def draw_graph(self, title: str = "Pipeline graph") -> plt.Figure:
+        return self.adapter.visualize(title)

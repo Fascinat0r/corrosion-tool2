@@ -1,0 +1,306 @@
+{
+  "nodes": [
+    {
+      "id": "n1",
+      "data": {
+        "y": 2,
+        "x": 0,
+        "supply": 2,
+        "pressure": 106970.4
+      }
+    },
+    {
+      "id": "n2",
+      "data": {
+        "y": 2,
+        "x": 1,
+        "demand": 2,
+        "pressure": 106971.9
+      }
+    },
+    {
+      "id": "n3",
+      "data": {
+        "y": 3,
+        "x": 1,
+        "demand": 1,
+        "pressure": 105994.5
+      }
+    },
+    {
+      "id": "n4",
+      "data": {
+        "y": 1,
+        "x": 1,
+        "demand": 1,
+        "pressure": 106974.9
+      }
+    },
+    {
+      "id": "n5",
+      "data": {
+        "y": 3,
+        "x": 3,
+        "demand": 4,
+        "pressure": 106994.9
+      }
+    },
+    {
+      "id": "n6",
+      "data": {
+        "y": 4,
+        "x": 3,
+        "demand": 4,
+        "pressure": 106000.0
+      }
+    },
+    {
+      "id": "n7",
+      "data": {
+        "y": 1,
+        "x": 2,
+        "demand": 6,
+        "pressure": 106975.4
+      }
+    },
+    {
+      "id": "n8",
+      "data": {
+        "y": 0,
+        "x": 2,
+        "supply": 5,
+        "pressure": 106967.8
+      }
+    },
+    {
+      "id": "n9",
+      "data": {
+        "y": 2,
+        "x": 3,
+        "demand": 3,
+        "pressure": 105991.8
+      }
+    },
+    {
+      "id": "n10",
+      "data": {
+        "y": 1,
+        "x": 3,
+        "demand": 6,
+        "pressure": 106985.7
+      }
+    },
+    {
+      "id": "n11",
+      "data": {
+        "y": 1,
+        "x": 4,
+        "demand": 3,
+        "pressure": 106996.0
+      }
+    },
+    {
+      "id": "n12",
+      "data": {
+        "y": 2,
+        "x": 4,
+        "demand": 1.5,
+        "pressure": 106999.1
+      }
+    },
+    {
+      "id": "n13",
+      "data": {
+        "y": 0,
+        "x": 4,
+        "demand": 1.5,
+        "pressure": 105000.0
+      }
+    },
+    {
+      "id": "n14",
+      "data": {
+        "param": "value14",
+        "y": 2,
+        "x": 5,
+        "demand": 1.5,
+        "pressure": 107000.0
+      }
+    }
+  ],
+  "input_nodes": [
+    "n1",
+    "n8"
+  ],
+  "output_nodes": [
+    "n6",
+    "n13",
+    "n14"
+  ],
+  "edges": [
+    {
+      "source": "n1",
+      "target": "n2",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n2",
+      "target": "n3",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n2",
+      "target": "n4",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n3",
+      "target": "n5",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n4",
+      "target": "n7",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n8",
+      "target": "n7",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n7",
+      "target": "n10",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n9",
+      "target": "n10",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n5",
+      "target": "n9",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n5",
+      "target": "n6",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n10",
+      "target": "n11",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n11",
+      "target": "n12",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    },
+    {
+      "source": "n12",
+      "target": "n14",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5
+      }
+    },
+    {
+      "source": "n11",
+      "target": "n13",
+      "properties": {
+        "length": 100,
+        "diameter": 0.5,
+        "roughness_m": 0.000015,
+        "angle_deg": 0.5,
+        "heat_transfer_coefficient": 55,
+        "ambient_temperature": 290
+      }
+    }
+  ]
+}

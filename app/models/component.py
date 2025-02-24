@@ -11,7 +11,7 @@ class Component:
     substance: Substance  # Химический элемент
     temperature: np.float64  # Температура
     pressure: np.float64  # Давление
-    composition: np.float64  # Доля компонента в потоке  в мольных долях
+    composition: np.float64  # Доля компонента в потоке в мольных долях
     velocity: np.float64  # Скорость компонента в потоке
     fractions: (np.float64, np.float64)  # Доля жидкой и газовой фазы в компоненте (жидкая, газовая)
     densities: (np.float64, np.float64)  # Плотности жидкой и газовой фазы в компоненте (жидкая, газовая)

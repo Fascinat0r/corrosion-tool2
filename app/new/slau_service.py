@@ -1,4 +1,3 @@
-# services/slau_service.py
 import logging
 from typing import List, Tuple
 
@@ -7,10 +6,10 @@ import numpy as np
 
 from new.models import NodeType
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("pipeline_logger")
 
 
-class SLASolverServiceOld:
+class SLASolverService:
     """
     Итерационный расчет гидравлической сети с учетом дополнительных уравнений для узлов-водоразделов.
 
@@ -23,11 +22,8 @@ class SLASolverServiceOld:
             – дополнительные уравнения для узлов DIVIDER на основе chain-меток.
          c) Решение системы и обновление Q.
          d) Пересчет физических потерь dP по заданной формуле.
-         e) Поиск внутренних ребер с Q < –tolerance.
-         f) Если найдены такие ребра, производится переворот:
-            если ребро касается потребителя, то собирается вся цепочка потребительских узлов и переворачивается целиком.
-         g) Если были перевороты, сбрасываются chain-метки и пересчитываются типы узлов и цепочки (сброс всей информации о направлениях).
-         h) Если невязка давлений в узлах-водоразделах (разница dP среди входящих ребер) меньше tolerance, итерации завершаются.
+         h) Если невязка давлений в узлах-водоразделах (разница dP среди входящих ребер) меньше tolerance,
+            итерации завершаются.
     """
 
     def __init__(self, graph: nx.DiGraph):
@@ -46,7 +42,7 @@ class SLASolverServiceOld:
             props.setdefault("dP_old", 0.0)
             props.setdefault("R", 1e-3)  # Начальное сопротивление (эвристика)
             props.setdefault("dPfix", 0.0)  # Начальное фиксированное падение давления
-        logger.info(f"Инициализировано {len(self.edge_list)} рёбер.")
+        logger.debug(f"Инициализировано {len(self.edge_list)} рёбер.")
 
     def _compute_dP_physics(self):
         """
@@ -55,8 +51,8 @@ class SLASolverServiceOld:
         for e in self.edge_list:
             props = self.graph.edges[e]["properties"]
             Q = props["Q"]
-            length = props.get("length", 100.0)
-            diam = props.get("diameter", 0.5)
+            length = props.get("length", 0.0)
+            diam = props.get("diameter", 0.0)
             # Простая формула: dP = k * Q * |Q|, где k = length/(diameter^4)
             dp_val = Q * abs(Q) * (length / (diam ** 4))
             props["dP_old"] = props["dP"]
@@ -111,10 +107,10 @@ class SLASolverServiceOld:
             i = node_to_idx[n]
             tp = self.graph.nodes[n].get("type", NodeType.UNKNOWN)
             data = self.graph.nodes[n].get("data", {})
-            if tp == NodeType.INPUT:
+            if tp.value == NodeType.INPUT.value:
                 supply = float(data.get("supply", 0.0))
                 b_base[i] = -supply
-            elif tp == NodeType.CONSUMER:
+            elif tp.value == NodeType.CONSUMER.value:
                 demand = float(data.get("demand", 0.0))
                 b_base[i] = demand
             else:
@@ -132,7 +128,7 @@ class SLASolverServiceOld:
         extra_b = []
         # Дополнительные уравнения для узлов DIVIDER
         for n in nodes:
-            if self.graph.nodes[n].get("type", NodeType.UNKNOWN) != NodeType.DIVIDER:
+            if self.graph.nodes[n].get("type", NodeType.UNKNOWN).value != NodeType.DIVIDER.value:
                 continue
             chains = self._collect_chains_for_node(n)
             if len(chains) <= 1:
@@ -154,7 +150,7 @@ class SLASolverServiceOld:
                         row[idx] -= R_val
                         b_val -= dPfix
                     elif has_ref and has_cur:
-                        logger.warning(f"Ребро {e} принадлежит двум цепочкам: ref={ref}, cur={cur}")
+                        continue
                 extra_rows.append(row)
                 extra_b.append(b_val)
                 logger.info(f"Узел {n}, цепочки '{ref}' vs '{cur}', b={b_val:.2f}")
@@ -217,14 +213,14 @@ class SLASolverServiceOld:
                     # Добавляем ребро (prev, current)
                     edges.insert(0, (prev, current))
                     current = prev
-                    if self.graph.nodes[prev].get("type") != NodeType.CONSUMER:
+                    if self.graph.nodes[prev].get("type").value != NodeType.CONSUMER.value:
                         break
                 elif direction == "forward":
                     succs = list(self.graph.successors(current))
                     if len(succs) != 1:
                         break
                     nxt = succs[0]
-                    if self.graph.nodes[nxt].get("type") != NodeType.CONSUMER:
+                    if self.graph.nodes[nxt].get("type").value != NodeType.CONSUMER.value:
                         break
                     edges.append((current, nxt))
                     current = nxt
@@ -233,12 +229,12 @@ class SLASolverServiceOld:
             return edges
 
         # Если u является потребителем, расширяем цепочку назад от u
-        if self.graph.nodes[u].get("type") == NodeType.CONSUMER:
+        if self.graph.nodes[u].get("type").value == NodeType.CONSUMER.value:
             backward = extend_chain(u, "backward")
             chain_edges = backward + chain_edges
 
         # Если v является потребителем, расширяем цепочку вперед от v
-        if self.graph.nodes[v].get("type") == NodeType.CONSUMER:
+        if self.graph.nodes[v].get("type").value == NodeType.CONSUMER.value:
             forward = extend_chain(v, "forward")
             chain_edges = chain_edges + forward
 
@@ -252,7 +248,7 @@ class SLASolverServiceOld:
         Если разница меньше tolerance, возвращает True.
         """
         for n in self.graph.nodes():
-            if self.graph.nodes[n].get("type") == NodeType.DIVIDER:
+            if self.graph.nodes[n].get("type").value == NodeType.DIVIDER.value:
                 in_edges = [(u, v) for (u, v) in self.edge_list if v == n]
                 dp_list = [abs(self.graph.edges[e]["properties"].get("dP", 0.0)) for e in in_edges]
                 if dp_list:
@@ -268,12 +264,16 @@ class SLASolverServiceOld:
           - На каждой итерации вычисляем R, dPfix, формируем систему, решаем, обновляем Q, dP.
           - Если невязка в узлах DIVIDER (разница dP входящих ребер) меньше tolerance, завершаем итерации.
         """
+        if not self._validate_graph():
+            raise ValueError("Граф не прошел валидацию.")
+
         for it in range(1, max_iter + 1):
-            logger.debug(f"=== Итерация {it} ===")
+            logger.info(f"=== Итерация {it} ===")
+            self._build_divider_chains()
             self._compute_R_and_dPfix()
             A_ext, b_ext = self._build_system()
             Q, residuals, rank, s = np.linalg.lstsq(A_ext, b_ext, rcond=None)
-            logger.debug(f"Итерация {it}: rank={rank}, residuals={residuals}")
+            logger.info(f"Итерация {it}: rank={rank}, residuals={residuals}")
             for idx, e in enumerate(self.edge_list):
                 props = self.graph.edges[e]["properties"]
                 props["Q_old"] = props["Q"]
@@ -284,26 +284,180 @@ class SLASolverServiceOld:
             neg_edges = []
             for e in self.edge_list:
                 q = self.graph.edges[e]["properties"]["Q"]
-                utp = self.graph.nodes[e[0]].get("type", NodeType.UNKNOWN)
-                vtp = self.graph.nodes[e[1]].get("type", NodeType.UNKNOWN)
-                if q < -tolerance and (utp not in [NodeType.INPUT] and vtp not in [NodeType.OUTPUT]):
+                utp = self.graph.nodes[e[0]].get("type", NodeType.UNKNOWN).value
+                vtp = self.graph.nodes[e[1]].get("type", NodeType.UNKNOWN).value
+                if q < -tolerance and (utp not in [NodeType.INPUT.value] and vtp not in [NodeType.OUTPUT.value]):
                     neg_edges.append(e)
             if neg_edges:
-                logger.debug(f"Найдено {len(neg_edges)} рёбер с отрицательным Q..")
-            else:
-                logger.info("Нет отрицательных внутренних расходов. Проверяем невязку в узлах-водоразделах.")
-                if self._check_divider_pressures(tolerance):
-                    logger.info("Невязка удовлетворяет tolerance. Завершаем итерации.")
-                    break
-                else:
-                    logger.info("Невязка превышает tolerance, продолжаем итерации.")
-        else:
-            logger.warning("Достигнут лимит итераций, решение может быть неточным.")
-
-        for e in self.edge_list:
-            q = self.graph.edges[e]["properties"]["Q"]
-            logger.info(f"{e[0]} -> {e[1]}: Q={q:.4f}")
+                logger.info(f"Найдено {len(neg_edges)} рёбер с отрицательным Q")
         return [self.graph.edges[e]["properties"]["Q"] for e in self.edge_list]
 
-    def validate_graph(self):
-        self
+    def _build_divider_chains(self, max_depth: int = 10):
+        """
+        Для каждого узла типа DIVIDER:
+          - Находит все простые пути (с учетом направления) от INPUT-узлов к нему и от него к OUTPUT-узлам,
+            без повторения узлов (циклов).
+          - Каждому найденному пути присваивает уникальное имя (chain_inX или chain_outY).
+          - Помечает все рёбра на найденном пути этой меткой.
+          - Логирует цепочки.
+        """
+
+        # Получаем списки INPUT, OUTPUT и DIVIDER узлов
+        input_nodes = [n for n, d in self.graph.nodes(data=True) if d.get("type").value == NodeType.INPUT.value]
+        output_nodes = [n for n, d in self.graph.nodes(data=True) if d.get("type").value == NodeType.OUTPUT.value]
+        dividers = [n for n, d in self.graph.nodes(data=True) if d.get("type").value == NodeType.DIVIDER.value]
+
+        chain_in_counter = 1
+        chain_out_counter = 1
+
+        for d_node in dividers:
+            logger.info(f"Обрабатываем узел-водораздел {d_node}")
+            divider_chains = {"input_chains": [], "output_chains": []}
+
+            # Поиск путей от INPUT к d_node (учитываем направление)
+            for inp in input_nodes:
+                try:
+                    paths = list(nx.all_simple_paths(self.graph, source=inp, target=d_node, cutoff=max_depth))
+                except nx.NetworkXNoPath:
+                    continue
+                for path in paths:
+                    cname = f"chain_in{chain_in_counter}"
+                    chain_in_counter += 1
+                    self._mark_path_edges(path, cname)
+                    divider_chains["input_chains"].append((cname, path))
+
+            # Поиск путей от d_node к OUTPUT
+            for out in output_nodes:
+                try:
+                    paths = list(nx.all_simple_paths(self.graph, source=d_node, target=out, cutoff=max_depth))
+                except nx.NetworkXNoPath:
+                    continue
+                for path in paths:
+                    cname = f"chain_out{chain_out_counter}"
+                    chain_out_counter += 1
+                    self._mark_path_edges(path, cname)
+                    divider_chains["output_chains"].append((cname, path))
+
+            logger.info(f"Сформированные цепочки для узла {d_node}:")
+            if divider_chains["input_chains"]:
+                logger.info("  Входные цепочки:")
+                for cname, path in divider_chains["input_chains"]:
+                    logger.info(f"    {cname}: {' -> '.join(path)}")
+            if divider_chains["output_chains"]:
+                logger.info("  Выходные цепочки:")
+                for cname, path in divider_chains["output_chains"]:
+                    logger.info(f"    {cname}: {' -> '.join(path)}")
+        logger.info("Все цепочки для узлов-водоразделов успешно сформированы.")
+
+    def _mark_path_edges(self, node_path: List[str], chain_name: str):
+        """
+        Добавляет chain_name к атрибуту "chain" для каждого ребра, входящего в путь.
+        """
+        for i in range(len(node_path) - 1):
+            u, v = node_path[i], node_path[i + 1]
+            if self.graph.has_edge(u, v):
+                props = self.graph.edges[u, v].setdefault("properties", {})
+                old_chain = props.get("chain", "")
+                existing = [c.strip() for c in old_chain.split(",") if c.strip()]
+                if chain_name not in existing:
+                    new_chain = old_chain + ("," if old_chain else "") + chain_name
+                    props["chain"] = new_chain
+
+    def _validate_graph(self) -> bool:
+        """
+        Проверяет, что все узлы и рёбра имеют необходимые данные для корректного расчёта.
+
+        Для узлов:
+          - Проверяется, что задан параметр 'type' (NodeType).
+          - Если узел имеет тип INPUT, то в data должен присутствовать параметр 'supply' (и он должен быть положительным).
+          - Если узел имеет тип CONSUMER, то в data должен присутствовать параметр 'demand'.
+
+        Для рёбер:
+          - В properties должны быть заданы параметры 'length' и 'diameter'.
+          - Диаметр должен быть положительным (иначе деление на 0 при расчёте dP).
+
+        Если хотя бы одна проверка не пройдена, метод возвращает False, при этом все ошибки логируются.
+        """
+        iso = list(nx.isolates(self.graph))
+        if iso:
+            logger.warning(f"Изолированные узлы: {iso}")
+            raise
+        if not nx.is_weakly_connected(self.graph):
+            logger.warning("Граф не слабо-связный. Возможны несвязные компоненты.")
+
+        valid = True
+
+        # Проверка узлов
+        for node, data in self.graph.nodes(data=True):
+            # Проверяем наличие типа
+            if "type" not in data:
+                logger.error(f"Узел {node} не имеет атрибута 'type'.")
+                valid = False
+            else:
+                node_type = data["type"]
+                if node_type.value == NodeType.INPUT.value:
+                    supply = data.get("data", {}).get("supply", None)
+                    if supply is None:
+                        logger.error(f"Входной узел {node} не содержит параметр 'supply'.")
+                        valid = False
+                    else:
+                        try:
+                            if float(supply) <= 0:
+                                logger.error(f"Входной узел {node} имеет некорректное значение supply: {supply}.")
+                                valid = False
+                        except Exception as ex:
+                            logger.error(f"Невозможно преобразовать supply узла {node}: {supply} ({ex}).")
+                            valid = False
+                else:
+                    demand = data.get("data", {}).get("demand", None)
+                    if demand is None:
+                        logger.error(f"Потребитель {node} не содержит параметр 'demand'.")
+                        valid = False
+                    else:
+                        try:
+                            if float(demand) <= 0:
+                                logger.error(f"Потребитель {node} имеет некорректное значение demand: {demand}.")
+                                valid = False
+                        except Exception as ex:
+                            logger.error(f"Невозможно преобразовать demand узла {node}: {demand} ({ex}).")
+                            valid = False
+
+        # Проверка рёбер
+        for e in self.edge_list:
+            props = self.graph.edges[e].get("properties", {})
+            # Проверяем наличие длины
+            if "length" not in props:
+                logger.error(f"Ребро {e} не содержит параметр 'length'.")
+                valid = False
+            else:
+                try:
+                    length = float(props["length"])
+                    if length <= 0:
+                        logger.error(f"Ребро {e} имеет некорректную длину: {length}.")
+                        valid = False
+                except Exception as ex:
+                    logger.error(f"Невозможно преобразовать параметр 'length' ребра {e}: {props['length']} ({ex}).")
+                    valid = False
+
+            # Проверяем наличие диаметра
+            if "diameter" not in props:
+                logger.error(f"Ребро {e} не содержит параметр 'diameter'.")
+                valid = False
+            else:
+                try:
+                    diam = float(props["diameter"])
+                    if diam <= 0:
+                        logger.error(f"Ребро {e} имеет некорректный диаметр: {diam}.")
+                        valid = False
+                except Exception as ex:
+                    logger.error(
+                        f"Невозможно преобразовать параметр 'diameter' ребра {e}: {props['diameter']} ({ex}).")
+                    valid = False
+
+            # Можно добавить проверки для других параметров (например, roughness), если они критичны
+
+        if valid:
+            logger.info("Проверка данных завершена: все необходимые параметры присутствуют и корректны.")
+        else:
+            logger.error("Проверка данных завершена: обнаружены ошибки в входных данных.")
+        return valid
