@@ -54,7 +54,11 @@ class SLASolverService:
             length = props.get("length", 0.0)
             diam = props.get("diameter", 0.0)
             # Простая формула: dP = k * Q * |Q|, где k = length/(diameter^4)
-            dp_val = Q * abs(Q) * (length / (diam ** 4))
+            try:
+                dp_val = Q * abs(Q) * (length / (diam ** 4))
+            except Exception as ex:
+                logger.error(f"Ошибка при расчёте dP для ребра {e}: {ex}")
+                dp_val = 0.0
             props["dP_old"] = props["dP"]
             props["dP"] = dp_val
 
@@ -94,6 +98,7 @@ class SLASolverService:
         Формирует систему уравнений A_ext * Q = b_ext.
           - Первые n строк – базовые уравнения (массовый баланс) для всех узлов.
           - Дополнительные строки – для узлов DIVIDER (учитывая chain-метки, уравнения типа 3.2).
+        Возвращает матрицу A_ext и вектор b_ext.
         """
         nodes = list(self.graph.nodes())
         n_nodes = len(nodes)
@@ -102,7 +107,7 @@ class SLASolverService:
         b_base = np.zeros(n_nodes)
         node_to_idx = {n: i for i, n in enumerate(nodes)}
 
-        # Базовые уравнения
+        # Базовые уравнения (массовый баланс)
         for n in nodes:
             i = node_to_idx[n]
             tp = self.graph.nodes[n].get("type", NodeType.UNKNOWN)
@@ -115,6 +120,7 @@ class SLASolverService:
                 b_base[i] = demand
             else:
                 b_base[i] = 0.0
+            # Заполнение коэффициентов: входящие ребра +1, исходящие -1
             for pred in self.graph.predecessors(n):
                 if (pred, n) in self.edge_list:
                     j = self.edge_list.index((pred, n))
@@ -127,6 +133,7 @@ class SLASolverService:
         extra_rows = []
         extra_b = []
         # Дополнительные уравнения для узлов DIVIDER
+        # Каждая такая строка соответствует дополнительному уравнению (сравнение сумм потерь по двум цепочкам)
         for n in nodes:
             if self.graph.nodes[n].get("type", NodeType.UNKNOWN).value != NodeType.DIVIDER.value:
                 continue
@@ -149,11 +156,10 @@ class SLASolverService:
                     elif has_cur and not has_ref:
                         row[idx] -= R_val
                         b_val -= dPfix
-                    elif has_ref and has_cur:
-                        continue
+                    # Если ребро содержит обе метки, пропускаем
                 extra_rows.append(row)
                 extra_b.append(b_val)
-                logger.info(f"Узел {n}, цепочки '{ref}' vs '{cur}', b={b_val:.2f}")
+                logger.info(f"Узел {n}, сравнение цепочек '{ref}' vs '{cur}', b = {b_val:.2f}")
 
         if extra_rows:
             A_extra = np.array(extra_rows)
@@ -164,13 +170,9 @@ class SLASolverService:
             A_ext = A_base
             b_ext = b_base
 
-        logger.info("Сформированная матрица A_ext:")
-        print(A_ext)
-        logger.info("Сформированный вектор b_ext:")
-        print(b_ext)
         return A_ext, b_ext
 
-    def _collect_chains_for_node(self, node: str):
+    def _collect_chains_for_node(self, node: str) -> List[str]:
         """
         Собирает все уникальные chain-метки у рёбер, инцидентных узлу.
         """
@@ -184,6 +186,34 @@ class SLASolverService:
                         if token:
                             cset.add(token)
         return sorted(list(cset))
+
+    def print_pretty_system(self, A_ext, b_ext):
+        """
+        Выводит ее в удобном табличном виде.
+        Первые n строк соответствуют базовым уравнениям (массовый баланс) для узлов,
+        а следующие строки – дополнительным уравнениям для узлов DIVIDER.
+        Каждая строка подписывается идентификатором узла и его типом (или помечается как extra eqn).
+        """
+        nodes = list(self.graph.nodes())
+        n_nodes = len(nodes)
+        n_total = A_ext.shape[0]
+        # Выводим базовую часть
+        header = "Base equations (массовый баланс):"
+        logger.info(header)
+        logger.info("-" * len(header))
+        for i in range(n_nodes):
+            node = nodes[i]
+            node_type = self.graph.nodes[node].get("type", NodeType.UNKNOWN)
+            row_str = " | ".join(f"{A_ext[i, j]:10.3f}" for j in range(A_ext.shape[1]))
+            print(f"Узел {node:4s}({node_type.title+')':15s}:{row_str} | b = {b_ext[i]:10.3f}")
+
+        # Если есть дополнительные строки – для узлов DIVIDER
+        if n_total > n_nodes:
+            for i in range(n_nodes, n_total):
+                # Здесь мы не знаем точно, к какому узлу относится дополнительное уравнение,
+                # но можем пометить его как extra eqn # (i - n_nodes + 1)
+                row_str = " | ".join(f"{A_ext[i, j]:10.3f}" for j in range(A_ext.shape[1]))
+                print(f"Extra eqn #{str(i - n_nodes + 1):14s}:{row_str} | b = {b_ext[i]:10.3f}")
 
     def _collect_consumer_chain(self, edge: Tuple[str, str]) -> List[Tuple[str, str]]:
         """
@@ -272,6 +302,10 @@ class SLASolverService:
             self._build_divider_chains()
             self._compute_R_and_dPfix()
             A_ext, b_ext = self._build_system()
+
+            # Выводим систему уравнений в удобном виде
+            self.print_pretty_system(A_ext, b_ext)
+
             Q, residuals, rank, s = np.linalg.lstsq(A_ext, b_ext, rcond=None)
             logger.info(f"Итерация {it}: rank={rank}, residuals={residuals}")
             for idx, e in enumerate(self.edge_list):
