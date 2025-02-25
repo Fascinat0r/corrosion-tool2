@@ -4,23 +4,28 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any
 
+
 class NodeType(Enum):
     UNKNOWN = -1
-    INPUT = 0         # Входной узел (источник)
-    CONSUMER = 1      # Потребитель
-    BRANCH = 2        # Ветвление
-    DIVIDER = 3       # Водораздел (точка слияния потоков)
-    OUTPUT = 4        # Выходной узел
+    INPUT = 0  # Входной узел (источник)
+    OUTPUT = 1  # Выходной узел (сброс или конечный пункт)
+    CONSUMER = 2  # Узел-потребитель, обычно outDeg=0 (в тупиковой схеме) или (in=1,out=1) в некоторых схемах
+    BRANCH = 3  # Узел-вставка (in=1, out>1) - расход делится
+    MERGE = 4  # Узел-слияние (in>1, out=1)
+    DIVIDER = 5  # Водораздел или смешанное узел (in>1, out>1) - т.е. «сложное» объединение+разделение
+
+    # (иногда MERGE+DIVERSE, но для учебных задач можно назвать DIVIDER)
 
     @property
     def color(self) -> str:
         colors = {
             NodeType.UNKNOWN: "gray",
             NodeType.INPUT: "green",
+            NodeType.OUTPUT: "red",
             NodeType.CONSUMER: "blue",
             NodeType.BRANCH: "orange",
-            NodeType.DIVIDER: "purple",
-            NodeType.OUTPUT: "red"
+            NodeType.MERGE: "purple",
+            NodeType.DIVIDER: "pink",
         }
         return colors.get(self, "gray")
 
@@ -28,11 +33,12 @@ class NodeType(Enum):
     def title(self) -> str:
         titles = {
             NodeType.UNKNOWN: "Неизвестный",
-            NodeType.INPUT: "Водозабор",
+            NodeType.INPUT: "Источник (Input)",
+            NodeType.OUTPUT: "Выход (Output)",
             NodeType.CONSUMER: "Потребитель",
-            NodeType.BRANCH: "Ветвление",
-            NodeType.DIVIDER: "Водораздел",
-            NodeType.OUTPUT: "Выход"
+            NodeType.BRANCH: "Ветвление (Branch)",
+            NodeType.MERGE: "Слияние (Merge)",
+            NodeType.DIVIDER: "Водораздел (Divider)"
         }
         return titles.get(self, "Неизвестный")
 

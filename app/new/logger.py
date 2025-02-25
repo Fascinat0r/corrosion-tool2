@@ -1,10 +1,9 @@
 # logger.py
-
 import logging
 
 
 def setup_logger(level=logging.DEBUG):
-    logger = logging.getLogger("pipeline_logger")
+    logger = logging.getLogger("p_logger")
     logger.setLevel(level)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
