@@ -165,7 +165,7 @@ class SLASolverService:
                           tolerance=1e-6,
                           tolerance_resid=1e-3,
                           visualize_each_iter: bool = True,
-                          edge_label_for_plot: str = "Q"):
+                          edge_label_for_plot: str = "dP"):
 
         self._compute_dP_physics()
 
@@ -215,21 +215,19 @@ class SLASolverService:
                 # при развороте нужно пересобрать self.edge_list и т.д.
                 self.edge_list = list(self.graph.edges())
                 logger.info(f"Было развёрнуто {reoriented} рёбер, пересобираем систему и начинаем итерацию заново.")
-
-                self.last_residuals.clear()
-
+                #
+                # it = 0
+                # self.last_residuals.clear()
                 self.define_node_types()
-
                 # Визуализация
-                if visualize_each_iter:
-                    visualize_graph(
-                        self.graph,
-                        title=f"Iteration {it}",
-                        edge_label=edge_label_for_plot,
-                        show=True,
-                    )
-
-                continue
+                # if visualize_each_iter:
+                #     visualize_graph(
+                #         self.graph,
+                #         title=f"Iteration {it}",
+                #         edge_label=edge_label_for_plot,
+                #         show=True,
+                #     )
+                # continue
 
             # 2) Проверка стагнации
             self.last_residuals.append(resid_norm)
@@ -416,85 +414,6 @@ class SLASolverService:
                 else:
                     props["R"] = 1e5
                     props["dPfix"] = 0.0
-
-    # def _build_system(self) -> Tuple[np.ndarray, np.ndarray]:
-    #     """
-    #     Улучшено:
-    #       - Не учитываем demand в правой части (авто-расход).
-    #       - Для MERGE/DIVIDER строим экстра-уравнения через формирование цепочек.
-    #     """
-    #     nodes = list(self.graph.nodes())
-    #     node_idx = {n: i for i, n in enumerate(nodes)}
-    #     n_edges = len(self.edge_list)
-    #     n_nodes = len(nodes)
-    #
-    #     A_base = np.zeros((n_nodes, n_edges))
-    #     b_base = np.zeros(n_nodes)
-    #
-    #     # 1) Формируем mass-balance
-    #     for n in nodes:
-    #         i = node_idx[n]
-    #         data = self.graph.nodes[n].get("data", {})
-    #         tp = self.graph.nodes[n].get("type", NodeType.UNKNOWN)
-    #         supply = float(data.get("supply", 0.0))
-    #         # demand не учитываем жёстко
-    #         # demand = float(data.get("demand", 0.0))
-    #
-    #         # INPUT => (sum in - sum out) = -supply
-    #         # иначе => (sum in - sum out) = 0
-    #         if tp == NodeType.INPUT:
-    #             b_base[i] = -supply
-    #             logger.debug(f"Node {n} is INPUT, b_base[{i}]={b_base[i]}")
-    #         else:
-    #             b_base[i] = 0.0
-    #
-    #         # Коэффициенты (1 для входящих, -1 для исходящих)
-    #         for pred in self.graph.predecessors(n):
-    #             if (pred, n) in self.edge_list:
-    #                 j = self.edge_list.index((pred, n))
-    #                 A_base[i, j] += 1.0
-    #         for succ in self.graph.successors(n):
-    #             if (n, succ) in self.edge_list:
-    #                 j = self.edge_list.index((n, succ))
-    #                 A_base[i, j] -= 1.0
-    #
-    #     # 2) Дополнительные уравнения для MERGE/DIVIDER через цепочки
-    #     extra_rows = []
-    #     extra_b = []
-    #
-    #     for n in nodes:
-    #         tp = self.graph.nodes[n].get("type", NodeType.UNKNOWN)
-    #         if tp == NodeType.MERGE:
-    #             # Будем считать, что у узла MERGE out=1, in>1
-    #             # Ищем все пути от input_nodes к n
-    #             chain_list = self._collect_chains_for_merge(n)
-    #             # если есть k>1 цепочек, формируем k-1 уравнений
-    #             if len(chain_list) > 1:
-    #                 base_chain = chain_list[0]
-    #                 for other_chain in chain_list[1:]:
-    #                     row, b_val = self._form_chain_equation(base_chain, other_chain)
-    #                     extra_rows.append(row)
-    #                     extra_b.append(b_val)
-    #
-    #         elif tp == NodeType.DIVIDER:
-    #             # Считаем, что div узел in>1, out>1
-    #             # Ищем пути от n к выходам
-    #             chain_list = self._collect_chains_for_divider(n)
-    #             if len(chain_list) > 1:
-    #                 base_chain = chain_list[0]
-    #                 for other_chain in chain_list[1:]:
-    #                     row, b_val = self._form_chain_equation(base_chain, other_chain)
-    #                     extra_rows.append(row)
-    #                     extra_b.append(b_val)
-    #
-    #     if extra_rows:
-    #         A_extra = np.array(extra_rows)
-    #         b_extra = np.array(extra_b)
-    #         A_ext = np.vstack((A_base, A_extra))
-    #         b_ext = np.concatenate((b_base, b_extra))
-    #         return A_ext, b_ext
-    #     else:
-    #         return A_base, b_base
 
     def _collect_chains_for_merge(self, node: str) -> List[List[Tuple[str, str]]]:
         """
