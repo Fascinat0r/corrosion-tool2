@@ -2,7 +2,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from models import NodeType
+from app.new.models import NodeType
 
 
 def visualize_graph(graph, title: str = "Graph Visualization", edge_label: str = "dP", path=None, show=True) -> None:

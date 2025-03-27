@@ -6,8 +6,8 @@ from typing import List, Tuple
 import networkx as nx
 import numpy as np
 
-from models import NodeType, PipelineNode, PipelineEdge
-from visualize import visualize_graph
+from app.new.models import NodeType, PipelineNode, PipelineEdge
+from app.new.visualize import visualize_graph
 
 logger = logging.getLogger("p_logger")
 

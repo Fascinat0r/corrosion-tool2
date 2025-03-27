@@ -1,14 +1,14 @@
-# main.py
+# main_slau.py
 import sys
 
-from logger import setup_logger
-from slau_service import SLASolverService
+from app.new.logger import setup_logger
+from app.new.slau_service import SLASolverService
 
 
 def main():
     logger = setup_logger()
     if len(sys.argv) < 2:
-        print("Usage: python main.py path_to_json")
+        print("Usage: python main_slau.py path_to_json")
         sys.exit(1)
 
     json_path = sys.argv[1]

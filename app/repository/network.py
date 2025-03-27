@@ -5,7 +5,7 @@ from typing import List
 
 import networkx as nx
 
-from models.node import Node, Pipe, NodeType
+from app.models.node import Node, Pipe, NodeType
 
 logger = logging.getLogger(__name__)
 
