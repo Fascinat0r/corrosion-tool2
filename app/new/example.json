@@ -5,7 +5,7 @@
       "data": {
         "y": 2,
         "x": 0,
-        "supply": 20,
+        "supply": 2,
         "pressure": 106970.4
       }
     },
@@ -68,7 +68,7 @@
       "data": {
         "y": 0,
         "x": 2,
-        "supply": 20,
+        "supply": 5,
         "pressure": 106967.8
       }
     },

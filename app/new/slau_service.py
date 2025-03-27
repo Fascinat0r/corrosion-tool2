@@ -15,42 +15,50 @@ logger = logging.getLogger("p_logger")
 class SLASolverService:
 
     def __init__(self):
-        self.graph = nx.DiGraph()
-        self.input_nodes = []
-        self.output_nodes = []
-        self.edge_list = []
+        """
+        Инициализация сервиса для решения СЛАУ для трубопроводной сети.
+        """
+        self.graph = nx.DiGraph()  # Граф для хранения трубопроводной сети
+        self.input_nodes = []  # Список узлов-источников
+        self.output_nodes = []  # Список узлов-стоков
+        self.edge_list = []  # Список рёбер (для удобства)
         # новые поля для стагнации
-        self.last_residuals = []
+        self.last_residuals = []  # список последних невязок
 
-        # коэффициент under-relaxation
+        # коэффициенты under-relaxation для обновления R и dPfix
         self.alpha_R = 0.5  # например 0.5
-        self.alpha_dpfix = 0.5
+        self.alpha_dpfix = 0.5  # например 0.5
 
     def init(self, path):
-
-        self.load_from_json(path)
-
-        self.edge_list = list(self.graph.edges())
+        self.load_from_json(path)  # загружаем данные из JSON
+        self.edge_list = list(self.graph.edges())  # список рёбер для удобства
         # Инициализация свойств на рёбрах
-        for e in self.edge_list:
-            props = self.graph.edges[e].setdefault("properties", {})
-            props.setdefault("Q", 0.0)
-            props.setdefault("Q_old", 0.0)
-            props.setdefault("dP", 0.0)
-            props.setdefault("dP_old", 0.0)
-            props.setdefault("R", 1e-3)
-            props.setdefault("dPfix", 0.0)
+        for e in self.edge_list:  # для каждого ребра
+            props = self.graph.edges[e].setdefault("properties", {})  # получаем свойства
+            props.setdefault("Q", 0.0)  # расход
+            props.setdefault("Q_old", 0.0)  # старый расход
+            props.setdefault("dP", 0.0)  # падение давления
+            props.setdefault("dP_old", 0.0)  # старое падение давления
+            # Здесь на первой итерации можно задать R как ориентир из физических параметров:
+            # R_0 = L / (D^4)
+            length = self.graph.edges[e].get("length", 1.0)  # длина
+            diam = self.graph.edges[e].get("diameter", 0.5)  # диаметр
+            props.setdefault("R", length / (diam ** 4))  # гидравлическое сопротивление
+            props.setdefault("dPfix", 0.0)  # поправка на давление
 
-        for n, dat in self.graph.nodes(data=True):
-            t = dat.get("type", NodeType.UNKNOWN)
-            if t == NodeType.INPUT:
-                self.input_nodes.append(n)
-            elif t == NodeType.OUTPUT:
-                self.output_nodes.append(n)
+        for n, dat in self.graph.nodes(data=True):  # для каждого узла
+            t = dat.get("type", NodeType.UNKNOWN)  # тип узла
+            if t == NodeType.INPUT:  # если тип - вход
+                self.input_nodes.append(n)  # добавляем в список узлов-источников
+            elif t == NodeType.OUTPUT:  # если тип - выход
+                self.output_nodes.append(n)  # добавляем в список узлов-стоков
 
         self.define_node_types()
 
     def add_node(self, node: PipelineNode) -> None:
+        """
+        Добавление узла в граф используя модель PipelineNode.
+        """
         self.graph.add_node(
             node.id,
             type=node.type,
@@ -60,6 +68,9 @@ class SLASolverService:
         )
 
     def add_edge(self, edge: PipelineEdge) -> None:
+        """
+        Добавление ребра в граф используя модель PipelineEdge.
+        """
         self.graph.add_edge(
             edge.source,
             edge.target,
@@ -70,6 +81,13 @@ class SLASolverService:
         )
 
     def load_from_json(self, file_path: str) -> None:
+        """
+        Загрузка данных из JSON-файла:
+          - nodes: список узлов с id, x, y, supply, demand
+          - edges: список рёбер с source, target, length, diameter, roughness
+          - input_nodes: список id узлов-источников
+          - output_nodes: список id узлов-стоков
+        """
         logger.info(f"Читаем данные из {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -85,17 +103,13 @@ class SLASolverService:
             node_data = ninfo.get("data", {})
             x = float(node_data.get("x", 0.0))
             y = float(node_data.get("y", 0.0))
-
-            # Считаем, сколько supply/demand
             s = float(node_data.get("supply", 0.0))
             d = float(node_data.get("demand", 0.0))
             sum_supply += s
             sum_demand += d
-
             node = PipelineNode(id=node_id, type=NodeType.UNKNOWN, x=x, y=y, data=node_data)
             self.add_node(node)
 
-        # Предупреждение, если supply < demand
         if sum_supply < sum_demand - 1e-9:
             logger.warning(f"Обнаружено, что суммарный supply={sum_supply:.3f} < demand={sum_demand:.3f}. "
                            "Система может быть неразрешимой или даст большие невязки.")
@@ -122,12 +136,11 @@ class SLASolverService:
     def define_node_types(self) -> None:
         """
         Определяем тип узлов по in_degree/out_degree:
-          - INPUT:   в списке input_nodes
-          - OUTPUT:  в списке output_nodes
-          - MERGE:   in>1,  out=1
-          - BRANCH:  in=1,  out>1
-          - DIVIDER: in>1,  out>1
-          - CONSUMER: in==1 и out==1
+          - Если узел явно указан как input/output – используем это.
+          - MERGE: in>1, out=1
+          - BRANCH: in=1, out>1
+          - DIVIDER: in>1, out>1
+          - CONSUMER: in==1, out==1
           - Иначе UNKNOWN
         """
         for n in self.graph.nodes():
@@ -135,7 +148,6 @@ class SLASolverService:
             indeg = self.graph.in_degree(n)
             outdeg = self.graph.out_degree(n)
 
-            # Если узел явно указан как входной/выходной:
             if n in self.input_nodes:
                 new_type = NodeType.INPUT
             elif n in self.output_nodes:
@@ -161,35 +173,49 @@ class SLASolverService:
             logger.info(f"  {n}: {node_type.title}")
 
     def solve_iteratively(self,
-                          max_iter=20,
-                          tolerance=1e-6,
-                          tolerance_resid=1e-3,
-                          visualize_each_iter: bool = True,
-                          edge_label_for_plot: str = "dP"):
+                          max_iter=20,  # максимальное число итераций
+                          tolerance=1e-6,  # допуск по расходу
+                          tolerance_resid=1e-3,  # допуск по невязке
+                          visualize_each_iter: bool = True,  # визуализировать граф на каждой итерации
+                          edge_label_for_plot: str = "dP"):  # метка для рёбер на графике
+        """
+        Решение СЛАУ итерационным методом:
+            - Сначала вычисляем падение давления для каждой трубы по модели ΔP = k * Q * |Q|
+            - Затем итеративно вычисляем R и dPfix для каждой трубы с under-relaxation
+            - Составляем систему уравнений для каждого узла (массовый баланс)
+            - Добавляем дополнительные уравнения для узлов типа MERGE и DIVIDER
+            - Решаем систему уравнений методом наименьших квадратов
+            - Повторяем до сходимости по расходу и невязке
+        """
 
         self._compute_dP_physics()
 
+        if visualize_each_iter:
+            visualize_graph(
+                self.graph,
+                title="Initial state",
+                edge_label=edge_label_for_plot,
+                show=True,
+            )
+
         it = 0
-
-        while it <= max_iter:
+        while it <= max_iter:  # пока не превысили максимальное число итераций
             it += 1
-
             logger.info(f"=== Итерация {it} ===")
-            self._compute_R_and_dPfix_underrelaxed()  # используем метод с under-relaxation
+            self._compute_R_and_dPfix_underrelaxed()  # вычисляем R и dPfix с under-relaxation
             A, b = self._build_system()
-
             self._print_system(A, b)
 
-            Q_vector, residual, rank, s = np.linalg.lstsq(A, b, rcond=None)
-            if len(residual) > 0:
-                resid_norm = np.sqrt(residual[0])
+            Q_vector, residual, rank, s = np.linalg.lstsq(A, b, rcond=None)  # решаем СЛАУ
+            if len(residual) > 0:  # если есть остаток
+                resid_norm = np.sqrt(residual[0])  # норма остатка
             else:
-                Ax_b = A @ Q_vector - b
-                resid_norm = np.linalg.norm(Ax_b)
+                Ax_b = A @ Q_vector - b  # A*x - b
+                resid_norm = np.linalg.norm(Ax_b)  # норма остатка
 
             logger.debug(f"residual={residual}, rank={rank}, resid_norm={resid_norm:.4g}")
 
-            # Применяем решение
+            # Обновляем расходы на рёбрах и падение давления по результатам решения
             for i, e in enumerate(self.edge_list):
                 props = self.graph.edges[e]["properties"]
                 oldQ = props["Q"]
@@ -197,54 +223,37 @@ class SLASolverService:
                 props["Q_old"] = oldQ
                 props["Q"] = newQ
 
-            # пересчитать dP
-            self._compute_dP_physics()
+            self._compute_dP_physics()  # пересчитываем падение давления по новым расходам
 
-            # проверяем max_diff
             max_diff = max(
                 abs(self.graph.edges[e]["properties"]["Q"] - self.graph.edges[e]["properties"]["Q_old"])
                 for e in self.edge_list
             )
-
             logger.info(f"Макс. изменение расхода: {max_diff:e}")
             logger.info(f"Невязка решения (resid_norm): {resid_norm:.4f}")
 
-            # 1) Автоматический «разворот» рёбер
-            reoriented = self._auto_reorient_edges(eps=1e-7)
-            if reoriented:
-                # при развороте нужно пересобрать self.edge_list и т.д.
-                self.edge_list = list(self.graph.edges())
-                logger.info(f"Было развёрнуто {reoriented} рёбер, пересобираем систему и начинаем итерацию заново.")
-                #
-                # it = 0
-                # self.last_residuals.clear()
-                self.define_node_types()
-                # Визуализация
-                # if visualize_each_iter:
-                #     visualize_graph(
-                #         self.graph,
-                #         title=f"Iteration {it}",
-                #         edge_label=edge_label_for_plot,
-                #         show=True,
-                #     )
-                # continue
+            reoriented = self._auto_reorient_edges(eps=1e-7)  # разворачиваем рёбра с Q < 0
+            if reoriented:  # если развернули рёбра
+                self.edge_list = list(self.graph.edges())  # обновляем список рёбер
+                logger.info(f"Развернули {reoriented} рёбер, пересобираем систему и начинаем итерацию заново.")
+                self.define_node_types()  # переопределяем типы узлов
+                self.last_residuals.clear()  # очищаем список последних невязок
+                it = 0  # сбрасываем счётчик итераций
+                continue
 
-            # 2) Проверка стагнации
-            self.last_residuals.append(resid_norm)
-            if len(self.last_residuals) > 5:
-                # смотрим разницу между 5 шагов назад
-                old_r = self.last_residuals[-6]
-                if old_r - resid_norm < 0.01 * old_r:
-                    logger.warning("Невязка не улучшается более чем на 1% за последние 5 итераций. Останавливаемся.")
+            self.last_residuals.append(resid_norm)  # добавляем невязку в список
+            if len(self.last_residuals) > 10:  # если в списке больше 10 элементов
+                old_r = self.last_residuals[-11]  # старая невязка
+                if old_r - resid_norm < 0.01 * old_r:  # если невязка улучшилась менее чем на 1%
+                    logger.warning("Невязка не улучшается более чем на 1% за последние 10 итераций. Останавливаемся.")
                     break
 
-            # 3) Критерий выхода
             if max_diff < tolerance and resid_norm < tolerance_resid:
+                # если максимальное изменение расхода и невязка меньше допуска
                 logger.info("Расходы и невязка сошлись, завершаем итерации.")
                 break
 
-            # 4) Визуализация
-            if visualize_each_iter:
+            if visualize_each_iter:  # визуализируем граф на каждой итерации
                 visualize_graph(
                     self.graph,
                     title=f"Iteration {it}",
@@ -252,13 +261,15 @@ class SLASolverService:
                     show=True,
                 )
 
-        # итог
         Q_final = [self.graph.edges[e]["properties"]["Q"] for e in self.edge_list]
         return Q_final
 
     def _build_system(self):
         """
-        Аналог _build_system, но теперь учитываем demand.
+        Составление системы уравнений. Для каждого узла составляется mass-balance:
+          (сумма входящих Q) - (сумма исходящих Q) = demand - supply.
+        Дополнительно для узлов типа MERGE и DIVIDER добавляются extra-уравнения,
+        сформированные через цепочки труб с коэффициентами R и поправками dPfix.
         """
         nodes = list(self.graph.nodes())
         node_idx = {n: i for i, n in enumerate(nodes)}
@@ -273,12 +284,8 @@ class SLASolverService:
             data = self.graph.nodes[n].get("data", {})
             supply = float(data.get("supply", 0.0))
             demand = float(data.get("demand", 0.0))
-
-            # mass-balance
-            # (sum_in - sum_out) = demand - supply
             b_base[i] = demand - supply
 
-            # заполнение коэффициентов
             for pred in self.graph.predecessors(n):
                 if (pred, n) in self.edge_list:
                     j = self.edge_list.index((pred, n))
@@ -288,7 +295,6 @@ class SLASolverService:
                     j = self.edge_list.index((n, succ))
                     A_base[i, j] -= 1.0
 
-        # строим extra eqn для MERGE/DIVIDER
         extra_rows = []
         extra_b = []
         for n in nodes:
@@ -321,9 +327,9 @@ class SLASolverService:
 
     def _compute_R_and_dPfix_underrelaxed(self):
         """
-        Аналог _compute_R_and_dPfix, но используем under-relaxation:
-          R_new = alpha_R * R_candidate + (1-alpha_R)* R_old
-          dPfix_new = alpha_dpfix*dPfix_candidate + (1-alpha_dpfix)* old_dPfix
+        Вычисление R и dPfix для каждой трубы с применением under-relaxation.
+        Если изменение расхода (Q_cur - Q_old) очень мало, то для случая Q_cur ~= 0 вместо использования
+        большого значения (1e5) используем ориентир на основании физических параметров: R_candidate = L / D^4.
         """
         for e in self.edge_list:
             props = self.graph.edges[e]["properties"]
@@ -335,7 +341,7 @@ class SLASolverService:
             R_prev = props["R"]
             fix_prev = props["dPfix"]
 
-            # Вычисляем "сырые" R_candidate, fix_candidate
+            # Если изменения расхода существенны
             if abs(Q_cur - Q_old) > 1e-12:
                 R_cand = (dP_cur - dP_old) / (Q_cur - Q_old)
                 if R_cand < 1e-12:
@@ -349,10 +355,12 @@ class SLASolverService:
                     R_cand = r_val
                     fix_cand = 0.0
                 else:
-                    R_cand = 1e5
+                    # Вместо использования 1e5, берем ориентир из физических параметров
+                    length = self.graph.edges[e].get("length", 1.0)
+                    diam = self.graph.edges[e].get("diameter", 0.5)
+                    R_cand = length / (diam ** 4)
                     fix_cand = 0.0
 
-            # under-relaxation
             R_new = self.alpha_R * R_cand + (1 - self.alpha_R) * R_prev
             dpfix_new = self.alpha_dpfix * fix_cand + (1 - self.alpha_dpfix) * fix_prev
 
@@ -361,31 +369,32 @@ class SLASolverService:
 
     def _auto_reorient_edges(self, eps=1e-7):
         """
-        Проверяем все рёбра, если Q < -eps, разворачиваем ребро.
-        Возвращаем число рёбер, которые были развёрнуты.
+        Если Q < -eps для ребра, разворачиваем его (переставляем направление) и меняем знак Q.
         """
         cnt = 0
-
-        for u, v in list(self.edge_list):  # Копируем список, чтобы менять граф во время итерации
+        for u, v in list(self.edge_list):
             props = self.graph.edges[u, v]["properties"]
             if props["Q"] < -eps:
                 self.graph.remove_edge(u, v)
-                self.graph.add_edge(v, u, properties=props)  # Копируем все атрибуты
-                self.graph.edges[v, u]["properties"]["Q"] = abs(props["Q"])  # Исправляем знак Q
-                self.graph.edges[v, u]["properties"]["Q_old"] = 0.0  # Или abs(props["Q"])
+                self.graph.add_edge(v, u, properties=props)
+                self.graph.edges[v, u]["properties"]["Q"] = abs(props["Q"])
+                self.graph.edges[v, u]["properties"]["Q_old"] = 0.0
                 cnt += 1
-
         if cnt:
             logger.info(f"Развернули {cnt} рёбер из-за Q < 0.")
         return cnt
 
     def _compute_dP_physics(self):
+        """
+        Вычисляем падение давления для каждой трубы по модели:
+          ΔP = k * Q * |Q|
+        где k = L / (D^4)
+        """
         for e in self.edge_list:
             props = self.graph.edges[e]["properties"]
             Q = props["Q"]
             length = self.graph.edges[e].get("length", 1.0)
             diam = self.graph.edges[e].get("diameter", 0.5)
-            # простая модель
             k = length / (diam ** 4)
             props["dP_old"] = props["dP"]
             props["dP"] = k * Q * abs(Q)
@@ -417,19 +426,17 @@ class SLASolverService:
 
     def _collect_chains_for_merge(self, node: str) -> List[List[Tuple[str, str]]]:
         """
-        Для узла MERGE ищем пути от всех INPUT-узлов к этому узлу.
-        Возвращаем список цепочек, где каждая цепочка - список (u->v) рёбер.
+        Для узла MERGE ищем все простые пути от каждого входного узла до данного.
+        Возвращаем список цепочек (каждая цепочка – список ребер).
         """
         chains = []
         for inp in self.input_nodes:
             if inp == node:
                 continue
-            # Найдём все пути inp->...->node
             all_paths = list(nx.all_simple_paths(self.graph, inp, node))
             for path in all_paths:
                 if len(path) < 2:
                     continue
-                # Преобразуем список узлов в список рёбер
                 edges = []
                 for i in range(len(path) - 1):
                     u, v = path[i], path[i + 1]
@@ -440,8 +447,8 @@ class SLASolverService:
 
     def _collect_chains_for_divider(self, node: str) -> List[List[Tuple[str, str]]]:
         """
-        Для узла DIVIDER ищем пути от node к всем OUTPUT-узлам.
-        Возвращаем список цепочек (список рёбер).
+        Для узла DIVIDER ищем все простые пути от данного узла к каждому выходному узлу.
+        Возвращаем список цепочек (каждая цепочка – список ребер).
         """
         chains = []
         for outn in self.output_nodes:
@@ -460,14 +467,14 @@ class SLASolverService:
                     logger.debug(f"DIVIDER node {node}: found chain to {outn}: {edges}")
             except nx.NetworkXNoPath:
                 logger.debug(f"No path from {node} to {outn}")
-                pass
         return chains
 
     def _form_chain_equation(self, chainA: List[Tuple[str, str]], chainB: List[Tuple[str, str]]):
         """
-        Формирует вектор row, b_val для уравнения:
-          sum_{e in chainA}(R_e * Q_e + dPfix_e) = sum_{e in chainB}(R_e * Q_e + dPfix_e)
-        => (row[eA] += R_e, b += dPfix_e) vs (row[eB] -= R_e, b -= dPfix_e)
+        Формирует строку системы (вектор коэффициентов) и свободный член для сравнения двух альтернативных цепочек:
+          sum_{e in A}(R_e*Q_e + dPfix_e) = sum_{e in B}(R_e*Q_e + dPfix_e)
+        То есть, для каждого ребра в цепочке A коэффициент равен +R_e, в цепочке B – -R_e, а свободный член равен
+          (сумма dPfix для цепочки A) - (сумма dPfix для цепочки B)
         """
         n_edges = len(self.edge_list)
         row = np.zeros(n_edges)

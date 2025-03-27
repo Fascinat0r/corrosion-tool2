@@ -12,7 +12,7 @@ def visualize_graph(graph, title: str = "Graph Visualization", edge_label: str =
       - На рёбрах подписываем свойство properties[edge_label], например 'dP' или 'Q'.
     Возвращает figure, чтобы можно было сохранить или отобразить.
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(10, 8))
 
     # Позиции узлов: берём из (x, y)
     pos = {}

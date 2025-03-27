@@ -18,7 +18,7 @@ def main():
     solver.init(json_path)
 
     # Пример: tolerance_q=1e-5 (по расходу), tolerance_res=1e-2 (по невязке)
-    Q_values = solver.solve_iteratively(max_iter=20, tolerance=1e-5, tolerance_resid=1e-2, visualize_each_iter=True)
+    Q_values = solver.solve_iteratively(max_iter=50, tolerance=1e-5, tolerance_resid=1e-2, visualize_each_iter=True)
 
     digraph = solver.graph
     logger.info("Итоговые расходы по рёбрам:")
